@@ -1,103 +1,51 @@
-#!/usr/bin/env python3
-"""Build cafes-th.json for CoffeeMe from an osmium GeoJSON-sequence export.
+name: Update cafe data
 
-Input : cafes.geojsonseq  (from `osmium export ... -f geojsonseq`)
-Output: cafes-th.json     (compact list the website loads from its own domain)
+# สร้างไฟล์ cafes-th.json (ร้านกาแฟทั้งประเทศไทยจาก OpenStreetMap) ให้เว็บ CoffeeMe ใช้
+# รันอัตโนมัติวันที่ 1 ของทุกเดือน หรือกดรันเองได้ที่แท็บ Actions > Update cafe data > Run workflow
+on:
+  schedule:
+    - cron: "17 3 1 * *"     # 03:17 UTC วันที่ 1 ทุกเดือน
+  workflow_dispatch:
 
-Each cafe row is: [lat, lng, name, address, brandText]
-  - brandText = brand / operator / other-language names, used by the website
-    to hide big chains (Cafe Amazon, Starbucks, ...). Empty string if none.
+permissions:
+  contents: write   # ให้ workflow commit ไฟล์ cafes-th.json กลับเข้า repo ได้
+  pages: write      # ให้สั่ง GitHub Pages build ใหม่หลังอัปเดตข้อมูล
 
-Data (c) OpenStreetMap contributors, ODbL 1.0 - https://www.openstreetmap.org/copyright
-"""
-import json
-import sys
-from datetime import datetime, timezone
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
 
-SRC = sys.argv[1] if len(sys.argv) > 1 else "cafes.geojsonseq"
-OUT = sys.argv[2] if len(sys.argv) > 2 else "cafes-th.json"
+      - name: Install osmium
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
 
+      - name: Download Thailand OSM extract (Geofabrik)
+        run: curl -fsSL --retry 3 -o thailand.osm.pbf https://download.geofabrik.de/asia/thailand-latest.osm.pbf
 
-def mean_point(coords):
-    """Average of a list of [lng, lat] pairs -> (lat, lng)."""
-    if not coords:
-        return None
-    lng = sum(c[0] for c in coords) / len(coords)
-    lat = sum(c[1] for c in coords) / len(coords)
-    return lat, lng
+      - name: Keep only cafes / coffee shops
+        run: |
+          osmium tags-filter thailand.osm.pbf nwr/amenity=cafe nwr/shop=coffee -o cafes.osm.pbf --overwrite
+          osmium export cafes.osm.pbf -f geojsonseq -a type,id -o cafes.geojsonseq --overwrite
 
+      - name: Build cafes-th.json
+        run: python3 scripts/build_cafes.py cafes.geojsonseq cafes-th.json
 
-def representative_point(geom):
-    t = geom.get("type")
-    c = geom.get("coordinates")
-    if not c:
-        return None
-    if t == "Point":
-        return c[1], c[0]
-    if t in ("LineString", "MultiPoint"):
-        return mean_point(c)
-    if t == "Polygon":
-        return mean_point(c[0])          # outer ring
-    if t == "MultiLineString":
-        return mean_point(c[0])
-    if t == "MultiPolygon":
-        return mean_point(c[0][0])       # outer ring of first polygon
-    return None
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cafes-th.json
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Update cafe data from OpenStreetMap"
+            git push
+          fi
 
-
-def address_of(p):
-    parts = [p.get(k) for k in ("addr:housenumber", "addr:street", "addr:subdistrict",
-                                "addr:district", "addr:city", "addr:province")]
-    seen, out = set(), []
-    for x in parts:
-        if x and x not in seen:
-            seen.add(x)
-            out.append(x)
-    return " ".join(out)
-
-
-def main():
-    rows, seen_ids = [], set()
-    with open(SRC, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip().lstrip("\x1e").strip()   # geojsonseq record separator
-            if not line:
-                continue
-            feat = json.loads(line)
-            p = feat.get("properties") or {}
-            fid = (p.get("@type"), p.get("@id"))
-            if fid[1] is not None:
-                if fid in seen_ids:
-                    continue
-                seen_ids.add(fid)
-            pt = representative_point(feat.get("geometry") or {})
-            if not pt:
-                continue
-            lat, lng = pt
-            name = p.get("name") or p.get("name:th") or p.get("name:en") or ""
-            brand_bits = [p.get(k) for k in ("brand", "brand:en", "brand:th", "operator", "name:en", "name:th")]
-            uniq = []
-            for b in brand_bits:
-                if b and b != name and b not in uniq:
-                    uniq.append(b)
-            brand_text = " | ".join(uniq)
-            rows.append([round(lat, 5), round(lng, 5), name, address_of(p), brand_text])
-
-    rows.sort(key=lambda r: (r[0], r[1]))
-    data = {
-        "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "source": "OpenStreetMap via Geofabrik (thailand-latest.osm.pbf)",
-        "license": "Data (c) OpenStreetMap contributors, ODbL 1.0",
-        "fields": ["lat", "lng", "name", "address", "brandText"],
-        "cafes": rows,
-    }
-    with open(OUT, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"wrote {OUT}: {len(rows)} cafes")
-    if len(rows) < 100:
-        # Thailand has thousands of cafes in OSM; a tiny result means something broke.
-        sys.exit("too few cafes - refusing to publish a broken data file")
-
-
-if __name__ == "__main__":
-    main()
+      - name: Rebuild GitHub Pages
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds"
