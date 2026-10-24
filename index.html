@@ -848,6 +848,15 @@
   .map-fallback code{ background:var(--bg-soft); padding:2px 7px; border-radius:6px; font-size:.85em; }
   .map-note{ font-size:.82rem; color:var(--ink-soft); padding:10px 4px 4px; }
 
+  /* ---------- OSM live nearby-search section ---------- */
+  .osm-section{ padding:6px 0 40px; }
+  .osm-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:4px 0 2px; }
+  .osm-status{ min-height:1.3em; font-size:.85rem; color:var(--moss-deep); padding:4px 0 10px; }
+  .osm-card{ cursor:default; }
+  .osm-badge{ align-self:flex-start; font-size:.68rem; color:var(--moss-deep); background:var(--bg-soft); border-radius:999px; padding:3px 9px; }
+  .osm-card .card-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:2px; }
+  .osm-card .btn{ font-size:.8rem; padding:8px 13px; }
+
   /* ---------- modal ---------- */
   .modal-backdrop{ position:fixed; inset:0; background:rgba(26,20,15,.5); backdrop-filter:blur(2px); display:flex; align-items:flex-end; justify-content:center; z-index:100; }
   @media (min-width:720px){ .modal-backdrop{ align-items:center; padding:24px; } }
@@ -929,6 +938,7 @@
         <button class="chip chip-sm radius-chip" data-km="100" type="button">100 กม. (ระหว่างทาง)</button>
         <button class="chip chip-sm radius-chip active" data-km="0" type="button">ไม่จำกัด</button>
       </div>
+      <p class="map-note" style="padding:8px 4px 0;">* นอกจากร้านที่คัดสรรไว้ เมื่อค้นหาตำแหน่ง/พื้นที่ ระบบจะค้นหาร้านกาแฟอื่น ๆ ใกล้เคียงเพิ่มเติมจาก OpenStreetMap ให้ด้วย (ฟรี ไม่มีค่าใช้จ่าย)</p>
     </div>
 
     <div class="mascot-wrap">
@@ -986,6 +996,14 @@
       </div>
     </div>
     <p class="map-note">* แผนที่นี้ใช้ OpenStreetMap ผ่านไลบรารี Leaflet (โอเพนซอร์ส ไม่มีค่าใช้จ่าย ไม่ต้องสมัคร API key หรือผูกบัตรเครดิต)</p>
+  </section>
+
+  <section id="osmSection" class="osm-section" hidden>
+    <div class="osm-head">
+      <p class="section-kicker" style="margin:0;">ร้านกาแฟอื่น ๆ ใกล้เคียง (ข้อมูลจากชุมชน OpenStreetMap — ยังไม่ผ่านการคัดสรรของ CoffeeMe)</p>
+    </div>
+    <p class="osm-status" id="osmStatus" role="status"></p>
+    <section id="osmResults" class="shop-grid"></section>
   </section>
 </div>
 
@@ -1061,6 +1079,16 @@
   var listView = document.getElementById('listView');
   var resultCount = document.getElementById('resultCount');
 
+  /* ---------- live nearby-search ผ่าน OpenStreetMap (ฟรี ไม่มี API key) ----------
+     Nominatim = แปลงชื่อพื้นที่ที่พิมพ์ -> พิกัด (geocoding)
+     Overpass API = ค้นหาร้านกาแฟจริงรอบพิกัดนั้นจากข้อมูลของ OpenStreetMap
+     ทั้งสองเป็นบริการสาธารณะฟรี ไม่ต้องสมัคร/ผูกบัตร แต่เป็นเซิร์ฟเวอร์ชุมชน
+     อาจช้าหรือไม่ว่างเป็นบางครั้ง (ไม่มี SLA เหมือนบริการเสียเงิน) */
+  var osmHasRun = false;
+  var osmSection = document.getElementById('osmSection');
+  var osmStatus = document.getElementById('osmStatus');
+  var osmResultsEl = document.getElementById('osmResults');
+
   function tagPill(key){
     var t = tagMeta[key];
     return '<span class="tag"><svg class="icon"><use href="#'+t.icon+'"/></svg>'+t.label+'</span>';
@@ -1122,6 +1150,93 @@
     });
   }
 
+  function osmCardHTML(c){
+    var q = encodeURIComponent(c.name + ' ' + (c.address || ''));
+    var mapsSearchUrl = 'https://www.google.com/maps/search/?api=1&query=' + q;
+    var directionsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + c.lat + ',' + c.lng;
+    return (
+      '<div class="shop-card osm-card">' +
+        '<div class="thumb"><svg class="icon"><use href="#i-bean"/></svg></div>' +
+        '<div class="card-top"><span class="shop-name">'+c.name+'</span><span class="province-badge">'+c.distance.toFixed(1)+' กม.</span></div>' +
+        '<p class="blurb">'+(c.address || 'ไม่มีรายละเอียดที่อยู่ใน OpenStreetMap')+'</p>' +
+        '<span class="osm-badge">ข้อมูลจาก OpenStreetMap</span>' +
+        '<div class="card-actions">' +
+          '<a class="btn btn-outline" href="'+mapsSearchUrl+'" target="_blank" rel="noopener"><svg class="icon"><use href="#i-arrowout"/></svg>ดูใน Google Maps</a>' +
+          '<a class="btn btn-outline" href="'+directionsUrl+'" target="_blank" rel="noopener"><svg class="icon"><use href="#i-compass"/></svg>นำทาง</a>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function updateOsmSectionVisibility(){
+    var activeBtn = document.querySelector('.toggle-btn.active');
+    var view = activeBtn ? activeBtn.getAttribute('data-view') : 'list';
+    osmSection.hidden = !(osmHasRun && view === 'list');
+  }
+
+  function renderOsmResults(list){
+    osmResultsEl.innerHTML = list.length
+      ? list.map(osmCardHTML).join('')
+      : '<p style="color:var(--ink-soft);padding:6px 0;">ไม่พบร้านกาแฟเพิ่มเติมจาก OpenStreetMap ในพื้นที่นี้</p>';
+  }
+
+  function geocodePlace(query){
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=th&q=' + encodeURIComponent(query);
+    return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function(r){
+      if(!r.ok) throw new Error('nominatim_http_'+r.status);
+      return r.json();
+    }).then(function(data){
+      if(!data || !data.length) return null;
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    });
+  }
+
+  function fetchNearbyCafesOSM(lat, lng, radiusM){
+    var ql = '[out:json][timeout:20];(node["amenity"="cafe"](around:'+radiusM+','+lat+','+lng+');way["amenity"="cafe"](around:'+radiusM+','+lat+','+lng+'));out center 30;';
+    return fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(ql)
+    }).then(function(r){
+      if(!r.ok) throw new Error('overpass_http_'+r.status);
+      return r.json();
+    }).then(function(data){
+      return (data.elements || []).map(function(el){
+        var elLat = (el.lat != null) ? el.lat : (el.center ? el.center.lat : null);
+        var elLng = (el.lon != null) ? el.lon : (el.center ? el.center.lon : null);
+        if(elLat == null || elLng == null) return null;
+        var tags = el.tags || {};
+        var addrParts = [];
+        if(tags['addr:housenumber']) addrParts.push(tags['addr:housenumber']);
+        if(tags['addr:street']) addrParts.push(tags['addr:street']);
+        if(tags['addr:subdistrict']) addrParts.push(tags['addr:subdistrict']);
+        if(tags['addr:city']) addrParts.push(tags['addr:city']);
+        return {
+          name: tags.name || 'ร้านกาแฟ (ไม่ระบุชื่อใน OpenStreetMap)',
+          lat: elLat, lng: elLng,
+          address: addrParts.join(' '),
+          distance: haversineKm(lat, lng, elLat, elLng)
+        };
+      }).filter(Boolean).sort(function(a,b){ return a.distance - b.distance; }).slice(0, 15);
+    });
+  }
+
+  function runOsmNearbySearch(lat, lng){
+    osmHasRun = true;
+    updateOsmSectionVisibility();
+    osmStatus.textContent = 'กำลังค้นหาร้านกาแฟใกล้เคียงจาก OpenStreetMap...';
+    renderOsmResults([]);
+    fetchNearbyCafesOSM(lat, lng, 3000).then(function(list){
+      osmStatus.textContent = list.length
+        ? 'พบร้านกาแฟเพิ่มเติม ' + list.length + ' ร้านจาก OpenStreetMap (รัศมี 3 กม. — ข้อมูลจากชุมชน ยังไม่ผ่านการคัดสรร)'
+        : 'ไม่พบร้านกาแฟเพิ่มเติมจาก OpenStreetMap ในรัศมี 3 กม.';
+      renderOsmResults(list);
+    }).catch(function(){
+      osmStatus.textContent = 'ค้นหาจาก OpenStreetMap ไม่สำเร็จตอนนี้ (เซิร์ฟเวอร์ฟรีอาจช้าหรือไม่ว่างชั่วคราว) ลองใหม่อีกครั้งในอีกสักพัก';
+      renderOsmResults([]);
+    });
+  }
+
   document.getElementById('chipRow').addEventListener('click', function(e){
     var chip = e.target.closest('.chip');
     if(!chip) return;
@@ -1148,6 +1263,7 @@
       var view = btn.getAttribute('data-view');
       document.getElementById('listView').hidden = view !== 'list';
       document.getElementById('mapView').hidden = view !== 'map';
+      updateOsmSectionVisibility();
       if(view === 'map'){
         initLeafletMap();
         if(mapInstance){
@@ -1175,6 +1291,7 @@
       geoStatus.textContent = 'พบตำแหน่งของคุณแล้ว — เรียงร้านจากใกล้ไปไกล';
       renderList();
       placeUserMarker();
+      runOsmNearbySearch(userLocation.lat, userLocation.lng);
     }, function(err){
       var msg = 'ไม่สามารถระบุตำแหน่งได้ ลองพิมพ์ชื่อจังหวัดแทนนะ';
       if(err && err.code === err.PERMISSION_DENIED) msg = 'คุณไม่ได้อนุญาตให้เข้าถึงตำแหน่ง ลองพิมพ์ชื่อจังหวัดแทนนะ';
@@ -1186,17 +1303,38 @@
   function runAreaSearch(){
     var v = areaInput.value.trim();
     areaQuery = v;
-    if(v){
-      geoMode = false;
-      radiusRow.hidden = true;
-      geoStatus.textContent = 'ค้นหาร้านแถว "'+v+'" — พบ ' + shops.filter(function(s){
-        var q = v.toLowerCase();
-        return s.province.toLowerCase().indexOf(q) !== -1 || s.address.toLowerCase().indexOf(q) !== -1;
-      }).length + ' ร้าน';
-    } else {
+    if(!v){
       geoStatus.textContent = 'พิมพ์ชื่อจังหวัดหรือพื้นที่ก่อนนะ';
+      renderList();
+      return;
     }
+    geoMode = false;
+    radiusRow.hidden = true;
+    var curatedCount = shops.filter(function(s){
+      var q = v.toLowerCase();
+      return s.province.toLowerCase().indexOf(q) !== -1 || s.address.toLowerCase().indexOf(q) !== -1;
+    }).length;
+    var baseMsg = 'ค้นหาร้านแถว "'+v+'" — พบ ' + curatedCount + ' ร้านในสมุดที่คัดสรรไว้';
+    geoStatus.textContent = baseMsg + ' · กำลังค้นหาร้านอื่นเพิ่มเติมจาก OpenStreetMap...';
     renderList();
+
+    geocodePlace(v + ', ประเทศไทย').then(function(loc){
+      geoStatus.textContent = baseMsg;
+      if(!loc){
+        osmHasRun = true;
+        updateOsmSectionVisibility();
+        osmStatus.textContent = 'หาพื้นที่ "'+v+'" ไม่เจอบน OpenStreetMap ลองพิมพ์ชื่อให้ชัดเจนขึ้น เช่น ชื่อย่าน/อำเภอ/จังหวัด';
+        renderOsmResults([]);
+        return;
+      }
+      runOsmNearbySearch(loc.lat, loc.lng);
+    }).catch(function(){
+      geoStatus.textContent = baseMsg;
+      osmHasRun = true;
+      updateOsmSectionVisibility();
+      osmStatus.textContent = 'เชื่อมต่อ OpenStreetMap ไม่สำเร็จตอนนี้ ลองใหม่อีกครั้งในอีกสักพัก';
+      renderOsmResults([]);
+    });
   }
   document.getElementById('areaSearchBtn').addEventListener('click', runAreaSearch);
   areaInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') runAreaSearch(); });
