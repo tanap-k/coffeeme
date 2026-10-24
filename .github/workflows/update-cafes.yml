@@ -13,24 +13,46 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04    # ล็อกเวอร์ชันไว้ ไม่ให้เปลี่ยนตาม ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - name: Check files in repo
+        run: |
+          echo "ไฟล์ใน repo:"; ls -la
+          if [ -f scripts/build_cafes.py ]; then
+            echo "SCRIPT=scripts/build_cafes.py" >> "$GITHUB_ENV"
+          elif [ -f build_cafes.py ]; then
+            echo "SCRIPT=build_cafes.py" >> "$GITHUB_ENV"
+          else
+            echo "::error::ไม่เจอไฟล์ build_cafes.py — ต้องอยู่ที่ scripts/build_cafes.py (หรือไว้ที่หน้าแรกของ repo ก็ได้)"
+            exit 1
+          fi
 
       - name: Install osmium
-        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
+          osmium --version
 
       - name: Download Thailand OSM extract (Geofabrik)
-        run: curl -fsSL --retry 3 -o thailand.osm.pbf https://download.geofabrik.de/asia/thailand-latest.osm.pbf
+        run: |
+          curl -fSL --retry 3 -o thailand.osm.pbf https://download.geofabrik.de/asia/thailand-latest.osm.pbf
+          ls -lh thailand.osm.pbf
 
       - name: Keep only cafes / coffee shops
         run: |
+          set -euo pipefail
           osmium tags-filter thailand.osm.pbf nwr/amenity=cafe nwr/shop=coffee -o cafes.osm.pbf --overwrite
           osmium export cafes.osm.pbf -f geojsonseq -a type,id -o cafes.geojsonseq --overwrite
+          echo "features: $(wc -l < cafes.geojsonseq)"
 
       - name: Build cafes-th.json
-        run: python3 scripts/build_cafes.py cafes.geojsonseq cafes-th.json
+        run: python3 "$SCRIPT" cafes.geojsonseq cafes-th.json
 
       - name: Commit if changed
         run: |
