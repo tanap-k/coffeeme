@@ -856,11 +856,16 @@
   .osm-badge{ align-self:flex-start; font-size:.68rem; color:var(--moss-deep); background:var(--bg-soft); border-radius:999px; padding:3px 9px; }
   .osm-card .card-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:2px; }
   .osm-card .btn{ font-size:.8rem; padding:8px 13px; }
+  .osm-more-wrap{ display:flex; justify-content:center; padding:4px 0 10px; }
 
   /* ---------- modal ---------- */
   .modal-backdrop{ position:fixed; inset:0; background:rgba(26,20,15,.5); backdrop-filter:blur(2px); display:flex; align-items:flex-end; justify-content:center; z-index:100; }
   @media (min-width:720px){ .modal-backdrop{ align-items:center; padding:24px; } }
   .modal-backdrop[hidden]{ display:none; }
+  /* สำคัญ: คลาสที่ตั้ง display:flex/grid จะ "ชนะ" attribute hidden ของเบราว์เซอร์
+     ทำให้ element ที่สั่งซ่อนยังโผล่อยู่ (เช่น กล่อง "โหลดแผนที่ไม่สำเร็จ" ทับแผนที่ตลอดเวลา,
+     รายการร้านยังค้างใต้แผนที่) — กฎนี้บังคับให้ hidden ซ่อนจริงทุกกรณี */
+  [hidden]{ display:none !important; }
   .modal{
     background:var(--card); width:100%; max-width:540px; max-height:90vh; overflow-y:auto;
     border-radius:24px 24px 0 0; padding:26px 24px 30px; position:relative;
@@ -995,15 +1000,17 @@
         <p>พรีวิวหน้านี้โหลดสคริปต์จากภายนอกไม่ได้ (แผนที่ใช้ได้จริงเมื่อเปิดจากไฟล์ index.html ตัวจริงหรือเว็บที่ deploy แล้ว ที่มีอินเทอร์เน็ตเข้าถึง)</p>
       </div>
     </div>
-    <p class="map-note">* แผนที่นี้ใช้ OpenStreetMap ผ่านไลบรารี Leaflet (โอเพนซอร์ส ไม่มีค่าใช้จ่าย ไม่ต้องสมัคร API key หรือผูกบัตรเครดิต)</p>
+    <p class="osm-status" id="osmMapStatus" role="status" style="padding:10px 4px 0;"></p>
+    <p class="map-note">* หมุดสีส้มอิฐ = ร้านที่คัดสรรไว้ · จุดสีเหลืองดิน = ร้านกาแฟจาก OpenStreetMap ใกล้พื้นที่ที่ค้นหา · แผนที่ใช้ OpenStreetMap ผ่าน Leaflet (ฟรี ไม่ต้องสมัคร API key)</p>
   </section>
 
   <section id="osmSection" class="osm-section" hidden>
     <div class="osm-head">
-      <p class="section-kicker" style="margin:0;">ร้านกาแฟอื่น ๆ ใกล้เคียง (ข้อมูลจากชุมชน OpenStreetMap — ยังไม่ผ่านการคัดสรรของ CoffeeMe)</p>
+      <p class="section-kicker" style="margin:0;">ร้านกาแฟอื่น ๆ ใกล้เคียง เรียงจากใกล้ไปไกล (ข้อมูลจากชุมชน OpenStreetMap — ซ่อนร้านเชนใหญ่แล้ว แต่ยังไม่ผ่านการคัดสรรของ CoffeeMe)</p>
     </div>
     <p class="osm-status" id="osmStatus" role="status"></p>
     <section id="osmResults" class="shop-grid"></section>
+    <div class="osm-more-wrap"><button class="btn btn-outline" id="osmMoreBtn" type="button" hidden>ดูเพิ่ม</button></div>
   </section>
 </div>
 
@@ -1242,11 +1249,29 @@
     osmSection.hidden = !(osmHasRun && view === 'list');
   }
 
+  /* แสดงทีละหน้า (OSM_PAGE ร้าน) เรียงจากใกล้ไปไกล แล้วกด "ดูเพิ่ม" เพื่อโหลดหน้าถัดไป
+     ข้อความกรณีไม่เจอ/ผิดพลาดแสดงอยู่ที่บรรทัดสถานะแล้ว ตรงนี้เลยไม่ต้องแสดงซ้ำ */
+  var OSM_PAGE = 20;
+  var osmShown = 0;
+  var osmMoreBtn = document.getElementById('osmMoreBtn');
+
   function renderOsmResults(list){
-    osmResultsEl.innerHTML = list.length
-      ? list.map(osmCardHTML).join('')
-      : '<p style="color:var(--ink-soft);padding:6px 0;">ไม่พบร้านกาแฟเพิ่มเติมจาก OpenStreetMap ในพื้นที่นี้</p>';
+    var visible = list.slice(0, osmShown);
+    osmResultsEl.innerHTML = visible.map(osmCardHTML).join('');
+    var remaining = list.length - visible.length;
+    osmMoreBtn.hidden = remaining <= 0;
+    if(remaining > 0){
+      osmMoreBtn.textContent = remaining <= OSM_PAGE
+        ? 'ดูเพิ่มอีก ' + remaining + ' ร้าน'
+        : 'ดูเพิ่มอีก ' + OSM_PAGE + ' ร้าน (เหลือทั้งหมด ' + remaining + ' ร้าน)';
+    }
   }
+
+  osmMoreBtn.addEventListener('click', function(){
+    osmShown += OSM_PAGE;
+    renderOsmResults(lastOsmList);
+    plotOsmMarkers(lastOsmList.slice(0, osmShown));
+  });
 
   function fetchWithTimeout(url, opts, ms){
     var controller = ('AbortController' in window) ? new AbortController() : null;
@@ -1256,8 +1281,8 @@
     return fetch(url, finalOpts).finally(function(){ if(timer) clearTimeout(timer); });
   }
 
-  function geocodePlace(query){
-    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=th&q=' + encodeURIComponent(query);
+  function geocodeOnce(query){
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=th&accept-language=th&q=' + encodeURIComponent(query);
     return fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 12000).then(function(r){
       if(!r.ok) throw new Error('nominatim_http_'+r.status);
       return r.json();
@@ -1267,16 +1292,82 @@
     });
   }
 
+  /* ลองค้นแบบที่ผู้ใช้พิมพ์ก่อน ถ้าไม่เจอ ลองอีกรอบแบบตัดคำนำหน้า (อำเภอ/จังหวัด/ตำบล)
+     ออกแล้วคั่นด้วยจุลภาค เช่น "อำเภอสอง จังหวัดแพร่" -> "สอง, แพร่" ซึ่ง Nominatim มักเข้าใจง่ายกว่า */
+  function geocodePlace(query){
+    var cleaned = query
+      .replace(/,?\s*ประเทศไทย\s*$/, '')
+      .replace(/(จังหวัด|จ\.|อำเภอ|อ\.|ตำบล|ต\.|เขต|แขวง)/g, ' ')
+      .trim().split(/\s+/).join(', ');
+    return geocodeOnce(query).then(function(loc){
+      if(loc || !cleaned || cleaned === query) return loc;
+      return geocodeOnce(cleaned);
+    });
+  }
+
+  /* เซิร์ฟเวอร์ Overpass สาธารณะ (ฟรี) — ถ้าตัวหลักล่ม/ไม่ว่าง ลองตัวสำรองต่อทันที */
+  var OVERPASS_ENDPOINTS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter'
+  ];
+
+  function overpassRequest(ql){
+    var i = 0;
+    function attempt(){
+      var url = OVERPASS_ENDPOINTS[i];
+      return fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent(ql)
+      }, 20000).then(function(r){
+        if(!r.ok) throw new Error('overpass_http_'+r.status);
+        return r.json();
+      }).catch(function(err){
+        i++;
+        if(i < OVERPASS_ENDPOINTS.length) return attempt();
+        throw err;
+      });
+    }
+    return attempt();
+  }
+
+  /* กรองร้านเชนใหญ่ออก เพื่อให้ผลลัพธ์ใกล้เคียงร้าน specialty มากขึ้น
+     เทียบจากแท็ก brand / name ใน OSM — ร้านเชนที่ไม่มีแท็กแบรนด์และตั้งชื่อแปลกไปอาจหลุดมาได้บ้าง
+     อยากเพิ่ม/ลดเชน แก้ในรายการนี้ได้เลย (ตัวพิมพ์เล็ก ไม่ต้องสนเว้นวรรค) */
+  var CHAIN_KEYWORDS = [
+    'amazon', 'อเมซอน',
+    'starbucks', 'สตาร์บัคส์', 'สตาร์บัค',
+    'inthanin', 'อินทนิล',
+    'punthai', 'พันธุ์ไทย',
+    'black canyon', 'แบล็คแคนยอน', 'แบล็ค แคนยอน',
+    'true coffee', 'ทรูคอฟฟี่', 'ทรู คอฟฟี่',
+    'coffee world', 'คอฟฟี่ เวิลด์',
+    'wawee', 'วาวี',
+    'all cafe', 'all café', 'ออลคาเฟ่',
+    'tim hortons', 'dunkin', 'ดังกิ้น',
+    'coffee bean & tea leaf', 'coffee bean and tea leaf', 'tom n toms'
+    /* ไม่ใส่ "ดอยช้าง" หรือ "ชาวดอย" เพราะร้านอิสระ/ร้านของไร่กาแฟหลายร้านใช้คำนี้ในชื่อ
+       ถ้าใส่จะกรองร้านดี ๆ ทิ้งผิด ๆ */
+  ];
+  function isChainCafe(tags){
+    var hay = [tags.brand, tags['brand:en'], tags['brand:th'], tags.name, tags['name:en'], tags['name:th'], tags.operator]
+      .filter(Boolean).join(' | ').toLowerCase();
+    if(!hay) return false;
+    for(var i=0;i<CHAIN_KEYWORDS.length;i++){
+      if(hay.indexOf(CHAIN_KEYWORDS[i]) !== -1) return true;
+    }
+    return false;
+  }
+
   function fetchNearbyCafesOSM(lat, lng, radiusM){
-    var ql = '[out:json][timeout:20];(node["amenity"="cafe"](around:'+radiusM+','+lat+','+lng+');way["amenity"="cafe"](around:'+radiusM+','+lat+','+lng+'));out center 30;';
-    return fetchWithTimeout('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent(ql)
-    }, 20000).then(function(r){
-      if(!r.ok) throw new Error('overpass_http_'+r.status);
-      return r.json();
-    }).then(function(data){
+    var a = '(around:'+radiusM+','+lat+','+lng+')';
+    /* ร้านกาแฟใน OSM ติดแท็กได้หลายแบบ: amenity=cafe (ส่วนใหญ่) และ shop=coffee (ร้านขาย/คั่วกาแฟ) */
+    var ql = '[out:json][timeout:25];(' +
+      'node["amenity"="cafe"]'+a+';way["amenity"="cafe"]'+a+';' +
+      'node["shop"="coffee"]'+a+';way["shop"="coffee"]'+a+';' +
+      ');out center;'; // ไม่จำกัดจำนวน — รับร้านทั้งหมดในรัศมี แล้วมาเรียงระยะทางเองด้านล่าง
+    return overpassRequest(ql).then(function(data){
       return (data.elements || []).map(function(el){
         var elLat = (el.lat != null) ? el.lat : (el.center ? el.center.lat : null);
         var elLng = (el.lon != null) ? el.lon : (el.center ? el.center.lon : null);
@@ -1291,25 +1382,65 @@
           name: tags.name || 'ร้านกาแฟ (ไม่ระบุชื่อใน OpenStreetMap)',
           lat: elLat, lng: elLng,
           address: addrParts.join(' '),
-          distance: haversineKm(lat, lng, elLat, elLng)
+          distance: haversineKm(lat, lng, elLat, elLng),
+          isChain: isChainCafe(tags)
         };
-      }).filter(Boolean).sort(function(a,b){ return a.distance - b.distance; }).slice(0, 15);
+      }).filter(Boolean).sort(function(a,b){ return a.distance - b.distance; });
     });
   }
 
+  /* แสดงสถานะทั้งในหมวดรายการ และใต้แผนที่ — ผู้ใช้จะเห็นผลไม่ว่าจะเปิดแท็บไหนอยู่ */
+  function setOsmStatus(text){
+    osmStatus.textContent = text;
+    var mapStatus = document.getElementById('osmMapStatus');
+    if(mapStatus) mapStatus.textContent = text;
+  }
+
+  /* ขยายรัศมีทีละขั้น: พื้นที่ต่างจังหวัด/อำเภอเล็ก ๆ ร้านใน OSM มักห่างกันเกิน 3 กม. */
+  var OSM_RADII_M = [3000, 10000, 30000];
+  var osmSearchToken = 0; // กันผลลัพธ์เก่าที่ตอบกลับช้ามาเขียนทับผลลัพธ์ใหม่
+  var searchCenter = null;
+  var lastOsmList = [];
+
   function runOsmNearbySearch(lat, lng, approxNote){
+    var token = ++osmSearchToken;
     osmHasRun = true;
+    searchCenter = { lat: lat, lng: lng };
     updateOsmSectionVisibility();
     var prefix = approxNote ? approxNote + ' ' : '';
-    osmStatus.textContent = prefix + 'กำลังค้นหาร้านกาแฟใกล้เคียงจาก OpenStreetMap...';
+    setOsmStatus(prefix + 'กำลังค้นหาร้านกาแฟใกล้เคียงจาก OpenStreetMap...');
+    lastOsmList = [];
+    osmShown = OSM_PAGE;
     renderOsmResults([]);
-    fetchNearbyCafesOSM(lat, lng, 3000).then(function(list){
-      osmStatus.textContent = prefix + (list.length
-        ? 'พบร้านกาแฟเพิ่มเติม ' + list.length + ' ร้านจาก OpenStreetMap (รัศมี 3 กม. — ข้อมูลจากชุมชน ยังไม่ผ่านการคัดสรร)'
-        : 'ไม่พบร้านกาแฟเพิ่มเติมจาก OpenStreetMap ในรัศมี 3 กม.');
-      renderOsmResults(list);
-    }).catch(function(){
-      osmStatus.textContent = prefix + 'ค้นหาจาก OpenStreetMap ไม่สำเร็จตอนนี้ (เซิร์ฟเวอร์ฟรีอาจช้าหรือไม่ว่างชั่วคราว) ลองใหม่อีกครั้งในอีกสักพัก';
+    plotOsmMarkers([]);
+    if(mapInstance) mapInstance.setView([lat, lng], 12);
+
+    var step = 0;
+    function tryRadius(){
+      var r = OSM_RADII_M[step];
+      return fetchNearbyCafesOSM(lat, lng, r).then(function(all){
+        if(token !== osmSearchToken) return; // มีการค้นหาใหม่แล้ว ทิ้งผลนี้
+        var list = all.filter(function(c){ return !c.isChain; });
+        var chainCount = all.length - list.length;
+        // ได้ร้าน (ไม่รวมเชน) ไม่ถึงหนึ่งหน้า และยังขยายรัศมีได้ -> ขยายต่อ
+        if(list.length < OSM_PAGE && step < OSM_RADII_M.length - 1){
+          step++;
+          setOsmStatus(prefix + 'เจอ ' + list.length + ' ร้านในรัศมี ' + (r/1000) + ' กม. กำลังขยายเป็น ' + (OSM_RADII_M[step]/1000) + ' กม. เพื่อหาเพิ่ม...');
+          return tryRadius();
+        }
+        var km = r / 1000;
+        var chainNote = chainCount ? ' · ซ่อนร้านเชนใหญ่ ' + chainCount + ' ร้าน' : '';
+        setOsmStatus(prefix + (list.length
+          ? 'พบร้านกาแฟ ' + list.length + ' ร้านจาก OpenStreetMap ในรัศมี ' + km + ' กม. เรียงจากใกล้ไปไกล' + chainNote + ' (ข้อมูลจากชุมชน ยังไม่ผ่านการคัดสรร)'
+          : 'ไม่พบร้านกาแฟใน OpenStreetMap แม้ขยายรัศมีถึง ' + km + ' กม.' + chainNote + ' — พื้นที่นี้อาจยังไม่มีใครบันทึกร้านไว้ใน OSM'));
+        lastOsmList = list;
+        renderOsmResults(list);
+        plotOsmMarkers(list.slice(0, osmShown));
+      });
+    }
+    tryRadius().catch(function(){
+      if(token !== osmSearchToken) return;
+      setOsmStatus(prefix + 'ค้นหาจาก OpenStreetMap ไม่สำเร็จตอนนี้ (เซิร์ฟเวอร์ฟรีทุกตัวไม่ตอบ) ลองใหม่อีกครั้งในอีกสักพัก');
       renderOsmResults([]);
     });
   }
@@ -1345,7 +1476,9 @@
         initLeafletMap();
         if(mapInstance){
           setTimeout(function(){ mapInstance.invalidateSize(); }, 0);
-          mapInstance.setView(userLocation ? [userLocation.lat, userLocation.lng] : [13.9, 100.9], userLocation ? 11 : 6);
+          var center = searchCenter || userLocation;
+          if(lastOsmList.length){ plotOsmMarkers(lastOsmList.slice(0, osmShown)); }
+          else { mapInstance.setView(center ? [center.lat, center.lng] : [13.9, 100.9], center ? 12 : 6); }
         }
       }
     });
@@ -1421,7 +1554,7 @@
       }
       osmHasRun = true;
       updateOsmSectionVisibility();
-      osmStatus.textContent = 'หาพื้นที่ "'+v+'" ไม่เจอ ลองพิมพ์ชื่อให้ชัดเจนขึ้น เช่น ชื่อย่าน/อำเภอ/จังหวัด';
+      setOsmStatus('หาพื้นที่ "'+v+'" ไม่เจอ ลองพิมพ์ชื่อให้ชัดเจนขึ้น เช่น ชื่อย่าน/อำเภอ/จังหวัด');
       renderOsmResults([]);
     }).catch(function(){
       geoStatus.textContent = baseMsg;
@@ -1432,7 +1565,7 @@
       }
       osmHasRun = true;
       updateOsmSectionVisibility();
-      osmStatus.textContent = 'เชื่อมต่อ OpenStreetMap ไม่สำเร็จตอนนี้ ลองใหม่อีกครั้งในอีกสักพัก';
+      setOsmStatus('เชื่อมต่อ OpenStreetMap ไม่สำเร็จตอนนี้ ลองใหม่อีกครั้งในอีกสักพัก');
       renderOsmResults([]);
     });
   }
@@ -1514,6 +1647,31 @@
 
     if(fallback) fallback.hidden = true;
     if(userLocation) placeUserMarker();
+    if(lastOsmList.length) plotOsmMarkers(lastOsmList.slice(0, osmShown)); // ผลค้นหาที่ได้มาก่อนเปิดแผนที่
+  }
+
+  /* หมุดร้านจาก OpenStreetMap (วงกลมสีเหลืองดิน แยกจากหมุดร้านคัดสรรสีส้มอิฐ) */
+  var osmLayer = null;
+  function plotOsmMarkers(list){
+    if(!mapInstance || typeof L === 'undefined') return;
+    if(osmLayer){ mapInstance.removeLayer(osmLayer); osmLayer = null; }
+    if(!list.length) return;
+    osmLayer = L.layerGroup().addTo(mapInstance);
+    var bounds = [];
+    list.forEach(function(c){
+      var dirUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + c.lat + ',' + c.lng;
+      var searchUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.name + ' ' + (c.address || ''));
+      L.circleMarker([c.lat, c.lng], {
+        radius: 7, color: '#FFFFFF', weight: 2, fillColor: '#B99456', fillOpacity: 1
+      }).bindPopup(
+        '<strong>' + escapeHtml(c.name) + '</strong><br>' + c.distance.toFixed(1) + ' กม. · ข้อมูลจาก OSM<br>' +
+        '<a href="' + searchUrl + '" target="_blank" rel="noopener">ดูใน Google Maps</a> · ' +
+        '<a href="' + dirUrl + '" target="_blank" rel="noopener">นำทาง</a>'
+      ).addTo(osmLayer);
+      bounds.push([c.lat, c.lng]);
+    });
+    if(searchCenter) bounds.push([searchCenter.lat, searchCenter.lng]);
+    if(bounds.length > 1) mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
   }
 
   var userMarker = null;
