@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoffeeMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;600;700&family=Mitr:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  /* Leaflet 1.9.4 core CSS, inlined so it also renders inside the Artifact preview
+     (the preview blocks stylesheets from external hosts other than Google Fonts).
+     Unmodified from the official leaflet.css except for this comment block.
+     The two background-image: url(images/...) rules below (layers control icon,
+     default marker icon) are never triggered — this site uses custom SVG pin
+     markers and no layers control, so no broken-image icons are shown. */
+  /* required styles */
+  
+  .leaflet-pane,
+  .leaflet-tile,
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow,
+  .leaflet-tile-container,
+  .leaflet-pane > svg,
+  .leaflet-pane > canvas,
+  .leaflet-zoom-box,
+  .leaflet-image-layer,
+  .leaflet-layer {
+  	position: absolute;
+  	left: 0;
+  	top: 0;
+  	}
+  .leaflet-container {
+  	overflow: hidden;
+  	}
+  .leaflet-tile,
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow {
+  	-webkit-user-select: none;
+  	   -moz-user-select: none;
+  	        user-select: none;
+  	  -webkit-user-drag: none;
+  	}
+  /* Prevents IE11 from highlighting tiles in blue */
+  .leaflet-tile::selection {
+  	background: transparent;
+  }
+  /* Safari renders non-retina tile on retina better with this, but Chrome is worse */
+  .leaflet-safari .leaflet-tile {
+  	image-rendering: -webkit-optimize-contrast;
+  	}
+  /* hack that prevents hw layers "stretching" when loading new tiles */
+  .leaflet-safari .leaflet-tile-container {
+  	width: 1600px;
+  	height: 1600px;
+  	-webkit-transform-origin: 0 0;
+  	}
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow {
+  	display: block;
+  	}
+  /* .leaflet-container svg: reset svg max-width decleration shipped in Joomla! (joomla.org) 3.x */
+  /* .leaflet-container img: map is broken in FF if you have max-width: 100% on tiles */
+  .leaflet-container .leaflet-overlay-pane svg {
+  	max-width: none !important;
+  	max-height: none !important;
+  	}
+  .leaflet-container .leaflet-marker-pane img,
+  .leaflet-container .leaflet-shadow-pane img,
+  .leaflet-container .leaflet-tile-pane img,
+  .leaflet-container img.leaflet-image-layer,
+  .leaflet-container .leaflet-tile {
+  	max-width: none !important;
+  	max-height: none !important;
+  	width: auto;
+  	padding: 0;
+  	}
+  
+  .leaflet-container img.leaflet-tile {
+  	/* See: https://bugs.chromium.org/p/chromium/issues/detail?id=600120 */
+  	mix-blend-mode: plus-lighter;
+  }
+  
+  .leaflet-container.leaflet-touch-zoom {
+  	-ms-touch-action: pan-x pan-y;
+  	touch-action: pan-x pan-y;
+  	}
+  .leaflet-container.leaflet-touch-drag {
+  	-ms-touch-action: pinch-zoom;
+  	/* Fallback for FF which doesn't support pinch-zoom */
+  	touch-action: none;
+  	touch-action: pinch-zoom;
+  }
+  .leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+  	-ms-touch-action: none;
+  	touch-action: none;
+  }
+  .leaflet-container {
+  	-webkit-tap-highlight-color: transparent;
+  }
+  .leaflet-container a {
+  	-webkit-tap-highlight-color: rgba(51, 181, 229, 0.4);
+  }
+  .leaflet-tile {
+  	filter: inherit;
+  	visibility: hidden;
+  	}
+  .leaflet-tile-loaded {
+  	visibility: inherit;
+  	}
+  .leaflet-zoom-box {
+  	width: 0;
+  	height: 0;
+  	-moz-box-sizing: border-box;
+  	     box-sizing: border-box;
+  	z-index: 800;
+  	}
+  /* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=888319 */
+  .leaflet-overlay-pane svg {
+  	-moz-user-select: none;
+  	}
+  
+  .leaflet-pane         { z-index: 400; }
+  
+  .leaflet-tile-pane    { z-index: 200; }
+  .leaflet-overlay-pane { z-index: 400; }
+  .leaflet-shadow-pane  { z-index: 500; }
+  .leaflet-marker-pane  { z-index: 600; }
+  .leaflet-tooltip-pane   { z-index: 650; }
+  .leaflet-popup-pane   { z-index: 700; }
+  
+  .leaflet-map-pane canvas { z-index: 100; }
+  .leaflet-map-pane svg    { z-index: 200; }
+  
+  .leaflet-vml-shape {
+  	width: 1px;
+  	height: 1px;
+  	}
+  .lvml {
+  	behavior: url(#default#VML);
+  	display: inline-block;
+  	position: absolute;
+  	}
+  
+  
+  /* control positioning */
+  
+  .leaflet-control {
+  	position: relative;
+  	z-index: 800;
+  	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+  	pointer-events: auto;
+  	}
+  .leaflet-top,
+  .leaflet-bottom {
+  	position: absolute;
+  	z-index: 1000;
+  	pointer-events: none;
+  	}
+  .leaflet-top {
+  	top: 0;
+  	}
+  .leaflet-right {
+  	right: 0;
+  	}
+  .leaflet-bottom {
+  	bottom: 0;
+  	}
+  .leaflet-left {
+  	left: 0;
+  	}
+  .leaflet-control {
+  	float: left;
+  	clear: both;
+  	}
+  .leaflet-right .leaflet-control {
+  	float: right;
+  	}
+  .leaflet-top .leaflet-control {
+  	margin-top: 10px;
+  	}
+  .leaflet-bottom .leaflet-control {
+  	margin-bottom: 10px;
+  	}
+  .leaflet-left .leaflet-control {
+  	margin-left: 10px;
+  	}
+  .leaflet-right .leaflet-control {
+  	margin-right: 10px;
+  	}
+  
+  
+  /* zoom and fade animations */
+  
+  .leaflet-fade-anim .leaflet-popup {
+  	opacity: 0;
+  	-webkit-transition: opacity 0.2s linear;
+  	   -moz-transition: opacity 0.2s linear;
+  	        transition: opacity 0.2s linear;
+  	}
+  .leaflet-fade-anim .leaflet-map-pane .leaflet-popup {
+  	opacity: 1;
+  	}
+  .leaflet-zoom-animated {
+  	-webkit-transform-origin: 0 0;
+  	    -ms-transform-origin: 0 0;
+  	        transform-origin: 0 0;
+  	}
+  svg.leaflet-zoom-animated {
+  	will-change: transform;
+  }
+  
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+  	-webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1);
+  	   -moz-transition:    -moz-transform 0.25s cubic-bezier(0,0,0.25,1);
+  	        transition:         transform 0.25s cubic-bezier(0,0,0.25,1);
+  	}
+  .leaflet-zoom-anim .leaflet-tile,
+  .leaflet-pan-anim .leaflet-tile {
+  	-webkit-transition: none;
+  	   -moz-transition: none;
+  	        transition: none;
+  	}
+  
+  .leaflet-zoom-anim .leaflet-zoom-hide {
+  	visibility: hidden;
+  	}
+  
+  
+  /* cursors */
+  
+  .leaflet-interactive {
+  	cursor: pointer;
+  	}
+  .leaflet-grab {
+  	cursor: -webkit-grab;
+  	cursor:    -moz-grab;
+  	cursor:         grab;
+  	}
+  .leaflet-crosshair,
+  .leaflet-crosshair .leaflet-interactive {
+  	cursor: crosshair;
+  	}
+  .leaflet-popup-pane,
+  .leaflet-control {
+  	cursor: auto;
+  	}
+  .leaflet-dragging .leaflet-grab,
+  .leaflet-dragging .leaflet-grab .leaflet-interactive,
+  .leaflet-dragging .leaflet-marker-draggable {
+  	cursor: move;
+  	cursor: -webkit-grabbing;
+  	cursor:    -moz-grabbing;
+  	cursor:         grabbing;
+  	}
+  
+  /* marker & overlays interactivity */
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow,
+  .leaflet-image-layer,
+  .leaflet-pane > svg path,
+  .leaflet-tile-container {
+  	pointer-events: none;
+  	}
+  
+  .leaflet-marker-icon.leaflet-interactive,
+  .leaflet-image-layer.leaflet-interactive,
+  .leaflet-pane > svg path.leaflet-interactive,
+  svg.leaflet-image-layer.leaflet-interactive path {
+  	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+  	pointer-events: auto;
+  	}
+  
+  /* visual tweaks */
+  
+  .leaflet-container {
+  	background: #ddd;
+  	outline-offset: 1px;
+  	}
+  .leaflet-container a {
+  	color: #0078A8;
+  	}
+  .leaflet-zoom-box {
+  	border: 2px dotted #38f;
+  	background: rgba(255,255,255,0.5);
+  	}
+  
+  
+  /* general typography */
+  .leaflet-container {
+  	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+  	font-size: 12px;
+  	font-size: 0.75rem;
+  	line-height: 1.5;
+  	}
+  
+  
+  /* general toolbar styles */
+  
+  .leaflet-bar {
+  	box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+  	border-radius: 4px;
+  	}
+  .leaflet-bar a {
+  	background-color: #fff;
+  	border-bottom: 1px solid #ccc;
+  	width: 26px;
+  	height: 26px;
+  	line-height: 26px;
+  	display: block;
+  	text-align: center;
+  	text-decoration: none;
+  	color: black;
+  	}
+  .leaflet-bar a,
+  .leaflet-control-layers-toggle {
+  	background-position: 50% 50%;
+  	background-repeat: no-repeat;
+  	display: block;
+  	}
+  .leaflet-bar a:hover,
+  .leaflet-bar a:focus {
+  	background-color: #f4f4f4;
+  	}
+  .leaflet-bar a:first-child {
+  	border-top-left-radius: 4px;
+  	border-top-right-radius: 4px;
+  	}
+  .leaflet-bar a:last-child {
+  	border-bottom-left-radius: 4px;
+  	border-bottom-right-radius: 4px;
+  	border-bottom: none;
+  	}
+  .leaflet-bar a.leaflet-disabled {
+  	cursor: default;
+  	background-color: #f4f4f4;
+  	color: #bbb;
+  	}
+  
+  .leaflet-touch .leaflet-bar a {
+  	width: 30px;
+  	height: 30px;
+  	line-height: 30px;
+  	}
+  .leaflet-touch .leaflet-bar a:first-child {
+  	border-top-left-radius: 2px;
+  	border-top-right-radius: 2px;
+  	}
+  .leaflet-touch .leaflet-bar a:last-child {
+  	border-bottom-left-radius: 2px;
+  	border-bottom-right-radius: 2px;
+  	}
+  
+  /* zoom control */
+  
+  .leaflet-control-zoom-in,
+  .leaflet-control-zoom-out {
+  	font: bold 18px 'Lucida Console', Monaco, monospace;
+  	text-indent: 1px;
+  	}
+  
+  .leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out  {
+  	font-size: 22px;
+  	}
+  
+  
+  /* layers control */
+  
+  .leaflet-control-layers {
+  	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  	background: #fff;
+  	border-radius: 5px;
+  	}
+  .leaflet-control-layers-toggle {
+  	background-image: url(images/layers.png);
+  	width: 36px;
+  	height: 36px;
+  	}
+  .leaflet-retina .leaflet-control-layers-toggle {
+  	background-image: url(images/layers-2x.png);
+  	background-size: 26px 26px;
+  	}
+  .leaflet-touch .leaflet-control-layers-toggle {
+  	width: 44px;
+  	height: 44px;
+  	}
+  .leaflet-control-layers .leaflet-control-layers-list,
+  .leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+  	display: none;
+  	}
+  .leaflet-control-layers-expanded .leaflet-control-layers-list {
+  	display: block;
+  	position: relative;
+  	}
+  .leaflet-control-layers-expanded {
+  	padding: 6px 10px 6px 6px;
+  	color: #333;
+  	background: #fff;
+  	}
+  .leaflet-control-layers-scrollbar {
+  	overflow-y: scroll;
+  	overflow-x: hidden;
+  	padding-right: 5px;
+  	}
+  .leaflet-control-layers-selector {
+  	margin-top: 2px;
+  	position: relative;
+  	top: 1px;
+  	}
+  .leaflet-control-layers label {
+  	display: block;
+  	font-size: 13px;
+  	font-size: 1.08333em;
+  	}
+  .leaflet-control-layers-separator {
+  	height: 0;
+  	border-top: 1px solid #ddd;
+  	margin: 5px -10px 5px -6px;
+  	}
+  
+  /* Default icon URLs */
+  .leaflet-default-icon-path { /* used only in path-guessing heuristic, see L.Icon.Default */
+  	background-image: url(images/marker-icon.png);
+  	}
+  
+  
+  /* attribution and scale controls */
+  
+  .leaflet-container .leaflet-control-attribution {
+  	background: #fff;
+  	background: rgba(255, 255, 255, 0.8);
+  	margin: 0;
+  	}
+  .leaflet-control-attribution,
+  .leaflet-control-scale-line {
+  	padding: 0 5px;
+  	color: #333;
+  	line-height: 1.4;
+  	}
+  .leaflet-control-attribution a {
+  	text-decoration: none;
+  	}
+  .leaflet-control-attribution a:hover,
+  .leaflet-control-attribution a:focus {
+  	text-decoration: underline;
+  	}
+  .leaflet-attribution-flag {
+  	display: inline !important;
+  	vertical-align: baseline !important;
+  	width: 1em;
+  	height: 0.6669em;
+  	}
+  .leaflet-left .leaflet-control-scale {
+  	margin-left: 5px;
+  	}
+  .leaflet-bottom .leaflet-control-scale {
+  	margin-bottom: 5px;
+  	}
+  .leaflet-control-scale-line {
+  	border: 2px solid #777;
+  	border-top: none;
+  	line-height: 1.1;
+  	padding: 2px 5px 1px;
+  	white-space: nowrap;
+  	-moz-box-sizing: border-box;
+  	     box-sizing: border-box;
+  	background: rgba(255, 255, 255, 0.8);
+  	text-shadow: 1px 1px #fff;
+  	}
+  .leaflet-control-scale-line:not(:first-child) {
+  	border-top: 2px solid #777;
+  	border-bottom: none;
+  	margin-top: -2px;
+  	}
+  .leaflet-control-scale-line:not(:first-child):not(:last-child) {
+  	border-bottom: 2px solid #777;
+  	}
+  
+  .leaflet-touch .leaflet-control-attribution,
+  .leaflet-touch .leaflet-control-layers,
+  .leaflet-touch .leaflet-bar {
+  	box-shadow: none;
+  	}
+  .leaflet-touch .leaflet-control-layers,
+  .leaflet-touch .leaflet-bar {
+  	border: 2px solid rgba(0,0,0,0.2);
+  	background-clip: padding-box;
+  	}
+  
+  
+  /* popup */
+  
+  .leaflet-popup {
+  	position: absolute;
+  	text-align: center;
+  	margin-bottom: 20px;
+  	}
+  .leaflet-popup-content-wrapper {
+  	padding: 1px;
+  	text-align: left;
+  	border-radius: 12px;
+  	}
+  .leaflet-popup-content {
+  	margin: 13px 24px 13px 20px;
+  	line-height: 1.3;
+  	font-size: 13px;
+  	font-size: 1.08333em;
+  	min-height: 1px;
+  	}
+  .leaflet-popup-content p {
+  	margin: 17px 0;
+  	margin: 1.3em 0;
+  	}
+  .leaflet-popup-tip-container {
+  	width: 40px;
+  	height: 20px;
+  	position: absolute;
+  	left: 50%;
+  	margin-top: -1px;
+  	margin-left: -20px;
+  	overflow: hidden;
+  	pointer-events: none;
+  	}
+  .leaflet-popup-tip {
+  	width: 17px;
+  	height: 17px;
+  	padding: 1px;
+  
+  	margin: -10px auto 0;
+  	pointer-events: auto;
+  
+  	-webkit-transform: rotate(45deg);
+  	   -moz-transform: rotate(45deg);
+  	    -ms-transform: rotate(45deg);
+  	        transform: rotate(45deg);
+  	}
+  .leaflet-popup-content-wrapper,
+  .leaflet-popup-tip {
+  	background: white;
+  	color: #333;
+  	box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+  	}
+  .leaflet-container a.leaflet-popup-close-button {
+  	position: absolute;
+  	top: 0;
+  	right: 0;
+  	border: none;
+  	text-align: center;
+  	width: 24px;
+  	height: 24px;
+  	font: 16px/24px Tahoma, Verdana, sans-serif;
+  	color: #757575;
+  	text-decoration: none;
+  	background: transparent;
+  	}
+  .leaflet-container a.leaflet-popup-close-button:hover,
+  .leaflet-container a.leaflet-popup-close-button:focus {
+  	color: #585858;
+  	}
+  .leaflet-popup-scrolled {
+  	overflow: auto;
+  	}
+  
+  .leaflet-oldie .leaflet-popup-content-wrapper {
+  	-ms-zoom: 1;
+  	}
+  .leaflet-oldie .leaflet-popup-tip {
+  	width: 24px;
+  	margin: 0 auto;
+  
+  	-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";
+  	filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678);
+  	}
+  
+  .leaflet-oldie .leaflet-control-zoom,
+  .leaflet-oldie .leaflet-control-layers,
+  .leaflet-oldie .leaflet-popup-content-wrapper,
+  .leaflet-oldie .leaflet-popup-tip {
+  	border: 1px solid #999;
+  	}
+  
+  
+  /* div icon */
+  
+  .leaflet-div-icon {
+  	background: #fff;
+  	border: 1px solid #666;
+  	}
+  
+  
+  /* Tooltip */
+  /* Base styles for the element that has a tooltip */
+  .leaflet-tooltip {
+  	position: absolute;
+  	padding: 6px;
+  	background-color: #fff;
+  	border: 1px solid #fff;
+  	border-radius: 3px;
+  	color: #222;
+  	white-space: nowrap;
+  	-webkit-user-select: none;
+  	-moz-user-select: none;
+  	-ms-user-select: none;
+  	user-select: none;
+  	pointer-events: none;
+  	box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  	}
+  .leaflet-tooltip.leaflet-interactive {
+  	cursor: pointer;
+  	pointer-events: auto;
+  	}
+  .leaflet-tooltip-top:before,
+  .leaflet-tooltip-bottom:before,
+  .leaflet-tooltip-left:before,
+  .leaflet-tooltip-right:before {
+  	position: absolute;
+  	pointer-events: none;
+  	border: 6px solid transparent;
+  	background: transparent;
+  	content: "";
+  	}
+  
+  /* Directions */
+  
+  .leaflet-tooltip-bottom {
+  	margin-top: 6px;
+  }
+  .leaflet-tooltip-top {
+  	margin-top: -6px;
+  }
+  .leaflet-tooltip-bottom:before,
+  .leaflet-tooltip-top:before {
+  	left: 50%;
+  	margin-left: -6px;
+  	}
+  .leaflet-tooltip-top:before {
+  	bottom: 0;
+  	margin-bottom: -12px;
+  	border-top-color: #fff;
+  	}
+  .leaflet-tooltip-bottom:before {
+  	top: 0;
+  	margin-top: -12px;
+  	margin-left: -6px;
+  	border-bottom-color: #fff;
+  	}
+  .leaflet-tooltip-left {
+  	margin-left: -6px;
+  }
+  .leaflet-tooltip-right {
+  	margin-left: 6px;
+  }
+  .leaflet-tooltip-left:before,
+  .leaflet-tooltip-right:before {
+  	top: 50%;
+  	margin-top: -6px;
+  	}
+  .leaflet-tooltip-left:before {
+  	right: 0;
+  	margin-right: -12px;
+  	border-left-color: #fff;
+  	}
+  .leaflet-tooltip-right:before {
+  	left: 0;
+  	margin-left: -12px;
+  	border-right-color: #fff;
+  	}
+  
+  /* Printing */
+  
+  @media print {
+  	/* Prevent printers from removing background-images of controls. */
+  	.leaflet-control {
+  		-webkit-print-color-adjust: exact;
+  		print-color-adjust: exact;
+  		}
+  	}
+
+  /* Deliberately single-theme (light only) — natural, low-saturation Muji-inspired palette. */
+  :root{
+    --bg:#F7F4EE;
+    --bg-soft:#EFEAE0;
+    --card:#FFFFFF;
+    --ink:#34302A;
+    --ink-soft:#8B8378;
+    --moss:#6E7B63;
+    --moss-deep:#57614F;
+    --ember:#B07355;
+    --butter:#B99456;
+    --line:#E2DCCD;
+    --shadow: rgba(52,48,42,0.06);
+    --shadow-lift: rgba(52,48,42,0.10);
+    --focus:#57614F;
+    --on-accent:#FBFAF6;
+    --radius:16px;
+    --radius-lg:22px;
+  }
+
+  *,*::before,*::after{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Mitr','Noto Sans Thai',sans-serif; line-height:1.7;
+    overflow-x:hidden;
+  }
+  h1,h2{ font-family:'Mali','Noto Sans Thai',sans-serif; font-weight:700; text-wrap:balance; margin:0; }
+  a{ color:inherit; }
+  svg{ display:block; max-width:100%; }
+  .icon{ width:1.1em; height:1.1em; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.18em; flex:none; }
+  .icon.filled{ fill:currentColor; stroke:none; }
+  .wrap{ max-width:1040px; margin:0 auto; padding:0 24px; }
+  :focus-visible{ outline:2.5px solid var(--focus); outline-offset:3px; border-radius:6px; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  }
+
+  /* ---------- header ---------- */
+  .site-header{ padding:22px 0 0; }
+  .site-header .wrap{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .logo{ display:flex; align-items:center; gap:8px; font-family:'Mali',sans-serif; font-weight:700; font-size:1.35rem; }
+  .logo .icon{ width:24px; height:24px; color:var(--moss); }
+  .draft-pill{
+    display:inline-flex; align-items:center; gap:6px; font-size:.76rem; color:var(--ink-soft);
+    background:var(--bg-soft); border-radius:999px; padding:6px 12px;
+  }
+  .draft-pill .icon{ width:13px; height:13px; }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:44px 0 8px; }
+  .hero .wrap{ display:grid; grid-template-columns:1.15fr 0.85fr; align-items:center; gap:36px; }
+  @media (max-width:820px){ .hero .wrap{ grid-template-columns:1fr; } .mascot-wrap{ order:-1; max-width:220px; margin:0 auto; } }
+
+  .kicker{ font-size:.98rem; color:var(--moss-deep); font-weight:500; margin:0 0 10px; }
+
+  .hero h1{ font-size:clamp(2rem,4.6vw,3rem); max-width:13ch; }
+  .hero p.lede{ margin-top:14px; max-width:48ch; color:var(--ink-soft); font-size:1.03rem; }
+
+  .search-panel{
+    margin-top:26px; background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radius-lg); box-shadow:0 8px 22px var(--shadow);
+    padding:12px; display:flex; flex-wrap:wrap; gap:10px; max-width:600px;
+  }
+  .btn{
+    font-family:'Mitr',sans-serif; font-size:.95rem; font-weight:500; border:none; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none;
+    border-radius:14px; padding:12px 18px; transition:transform .15s ease, background-color .15s ease, opacity .15s ease;
+  }
+  .btn:hover{ transform:translateY(-1px); }
+  .btn-primary{ background:var(--moss); color:var(--on-accent); }
+  .btn-primary:hover{ background:var(--moss-deep); }
+  .btn-outline{ background:var(--bg-soft); color:var(--moss-deep); }
+  .btn-outline:hover{ background:var(--line); }
+
+  .search-input-row{
+    flex:1 1 210px; display:flex; align-items:center; gap:8px;
+    background:var(--bg-soft); border-radius:14px; padding:0 14px;
+  }
+  .search-input-row .icon{ color:var(--ink-soft); }
+  .search-input-row input{
+    flex:1; min-width:0; border:none; background:transparent; outline:none;
+    font-family:'Mitr',sans-serif; font-size:.98rem; color:var(--ink); padding:12px 0;
+  }
+  .search-input-row input::placeholder{ color:var(--ink-soft); opacity:.85; }
+  .icon-btn{
+    background:var(--bg-soft); border:none; color:var(--ink); border-radius:14px;
+    width:44px; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;
+  }
+  .icon-btn:hover{ background:var(--line); }
+  .geo-status{ min-height:1.4em; margin-top:10px; font-size:.9rem; color:var(--moss-deep); }
+  .radius-row{ display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-top:8px; }
+  .radius-label{ font-size:.8rem; color:var(--ink-soft); margin-right:2px; }
+  .chip-sm{ padding:6px 12px; font-size:.8rem; }
+
+  /* ---------- mascot illustration ---------- */
+  .mascot-wrap{ position:relative; }
+  .mascot circle.blob{ fill:var(--bg-soft); }
+  .mascot .cup{ fill:var(--moss); }
+  .mascot .handle{ fill:none; stroke:var(--moss); stroke-width:8; stroke-linecap:round; }
+  .mascot .saucer{ fill:var(--line); }
+  .mascot .face{ fill:var(--card); }
+  .mascot .smile{ fill:none; stroke:var(--card); stroke-width:5; stroke-linecap:round; }
+  .mascot .steam{ fill:none; stroke:var(--ember); stroke-width:6; stroke-linecap:round; opacity:.8; transform-origin:center; }
+  .mascot .steam.s1{ animation:steam 3.2s ease-in-out infinite; }
+  .mascot .steam.s2{ animation:steam 3.2s ease-in-out infinite .3s; }
+  .mascot .steam.s3{ animation:steam 3.2s ease-in-out infinite .6s; }
+  @keyframes steam{ 0%,100%{ transform:translateY(0); opacity:.75; } 50%{ transform:translateY(-6px); opacity:1; } }
+  .mascot .leaf{ fill:var(--butter); }
+
+  /* ---------- filters ---------- */
+  .section-kicker{ font-size:.82rem; color:var(--ink-soft); margin:0 0 12px; letter-spacing:.02em; }
+  .filters{ padding:38px 0 0; }
+  .chip-row{ display:flex; gap:9px; overflow-x:auto; padding-bottom:4px; }
+  .chip{
+    flex:none; display:inline-flex; align-items:center; gap:7px; background:var(--bg-soft);
+    border:none; color:var(--ink); border-radius:999px; padding:9px 15px; font-size:.88rem; font-family:'Mitr',sans-serif;
+    cursor:pointer; transition:background-color .15s ease, color .15s ease;
+  }
+  .chip .icon{ width:14px; height:14px; }
+  .chip:hover{ background:var(--line); }
+  .chip.active{ background:var(--moss); color:var(--on-accent); }
+
+  /* ---------- view toggle ---------- */
+  .view-toggle-wrap{ padding:24px 0 4px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  .view-toggle{ display:inline-flex; background:var(--bg-soft); border-radius:14px; padding:4px; }
+  .toggle-btn{
+    font-family:'Mitr',sans-serif; font-size:.88rem; border:none; background:transparent; color:var(--ink-soft);
+    padding:9px 15px; border-radius:10px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+  }
+  .toggle-btn.active{ background:var(--moss); color:var(--on-accent); }
+  .result-meta{ font-size:.85rem; color:var(--ink-soft); }
+  .result-meta .num{ font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600; }
+
+  /* ---------- shop grid ---------- */
+  .shop-grid{ padding:20px 0 10px; display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:18px; }
+  .shop-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 14px 16px; box-shadow:0 4px 14px var(--shadow); text-align:left; font-family:inherit; color:inherit;
+    display:flex; flex-direction:column; gap:9px; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .shop-card:hover, .shop-card:focus-visible{ transform:translateY(-3px); box-shadow:0 12px 22px var(--shadow-lift); }
+  .thumb{
+    height:104px; border-radius:14px; background:var(--bg-soft);
+    display:flex; align-items:center; justify-content:center; color:var(--moss);
+  }
+  .thumb .icon{ width:30px; height:30px; }
+  .card-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .shop-name{ font-weight:600; font-size:1.06rem; }
+  .province-badge{ font-size:.72rem; color:var(--ink-soft); background:var(--bg-soft); border-radius:999px; padding:4px 10px; white-space:nowrap; }
+  .blurb{ font-size:.9rem; color:var(--ink-soft); flex:1; }
+  .tag-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .tag{ display:inline-flex; align-items:center; gap:4px; font-size:.72rem; color:var(--moss-deep); background:var(--bg-soft); padding:4px 9px; border-radius:999px; }
+  .tag .icon{ width:11px; height:11px; }
+  .card-cta{ margin-top:2px; display:inline-flex; align-items:center; gap:6px; font-size:.85rem; font-weight:500; color:var(--moss-deep); }
+  .card-cta .icon{ width:13px; height:13px; }
+
+  /* ---------- map view ---------- */
+  .map-view{ padding:20px 0 40px; }
+  .map-panel{ position:relative; border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); overflow:hidden; box-shadow:0 8px 22px var(--shadow); }
+  .map-canvas{ width:100%; height:420px; background:var(--bg-soft); }
+  .map-fallback{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:8px; padding:30px; background:var(--card);
+  }
+  .map-fallback .icon{ width:30px; height:30px; color:var(--ink-soft); }
+  .map-fallback strong{ font-size:1.02rem; }
+  .map-fallback p{ margin:0; font-size:.86rem; color:var(--ink-soft); max-width:40ch; }
+  .map-fallback code{ background:var(--bg-soft); padding:2px 7px; border-radius:6px; font-size:.85em; }
+  .map-note{ font-size:.82rem; color:var(--ink-soft); padding:10px 4px 4px; }
+
+  /* ---------- modal ---------- */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(26,20,15,.5); backdrop-filter:blur(2px); display:flex; align-items:flex-end; justify-content:center; z-index:100; }
+  @media (min-width:720px){ .modal-backdrop{ align-items:center; padding:24px; } }
+  .modal-backdrop[hidden]{ display:none; }
+  .modal{
+    background:var(--card); width:100%; max-width:540px; max-height:90vh; overflow-y:auto;
+    border-radius:24px 24px 0 0; padding:26px 24px 30px; position:relative;
+  }
+  @media (min-width:720px){ .modal{ border-radius:24px; } }
+  .modal-close{
+    position:absolute; top:14px; right:14px; background:var(--bg-soft); border:none;
+    border-radius:50%; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .modal-thumb{ height:130px; border-radius:16px; background:var(--bg-soft); display:flex; align-items:center; justify-content:center; color:var(--moss); margin-bottom:16px; }
+  .modal-thumb .icon{ width:38px; height:38px; }
+  .modal h2{ font-size:1.4rem; }
+  .modal-meta-line{ display:flex; align-items:center; gap:7px; color:var(--ink-soft); font-size:.87rem; margin-top:8px; }
+  .modal-meta-line .icon{ width:14px; height:14px; }
+  .modal-actions{ display:flex; flex-wrap:wrap; gap:10px; margin:18px 0 20px; }
+
+  /* ---------- footer ---------- */
+  .site-footer{ padding:56px 0 46px; text-align:center; }
+  .site-footer .logo{ justify-content:center; font-size:1.05rem; margin-bottom:8px; }
+  .site-footer p{ font-size:.82rem; color:var(--ink-soft); margin:2px 0; }
+</style>
+</head>
+<body>
+</head>
+<body>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-7.58 7-12A7 7 0 0 0 5 9c0 4.42 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.2"/><line x1="20" y1="20" x2="15" y2="15"/></symbol>
+  <symbol id="i-bean" viewBox="0 0 24 24"><path d="M12 3.2c-4.8 0-8.6 4-8.6 9S7.2 21.2 12 21.2s8.6-4.6 8.6-9.6S16.8 3.2 12 3.2z"/><path d="M8.6 19c1.4-3.4 1.4-4-.2-8.4-.7-2.4 1.4-5 4.6-6.4"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20 4C10 4 4 10 4 18c8 0 14-6 14-14z"/><path d="M6 18C10 14 14 10 18 6"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6.2 7.4 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.4 12 3 12 3z"/></symbol>
+  <symbol id="i-paw" viewBox="0 0 24 24"><circle cx="7.5" cy="8" r="1.8"/><circle cx="16.5" cy="8" r="1.8"/><circle cx="4.5" cy="13" r="1.7"/><circle cx="19.5" cy="13" r="1.7"/><path d="M12 13.2c-3.6 0-5.6 2.6-5.6 4.6a2.6 2.6 0 0 0 5.2.8 2.6 2.6 0 0 0 5.2-.8c0-2-2-4.6-5.6-4.6z"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 8.5a15 15 0 0 1 19 0"/><path d="M5.8 12.2a10.2 10.2 0 0 1 12.4 0"/><path d="M9 15.8a5.4 5.4 0 0 1 6 0"/><circle class="filled" cx="12" cy="19.2" r="1"/></symbol>
+  <symbol id="i-parking" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.4"/><path d="M9.2 17V7H13a3 3 0 0 1 0 6H9.2"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path class="filled" d="M12 3.2l2.7 5.7 6.1.6-4.6 4.2 1.3 6.1L12 16.7l-5.5 3.1 1.3-6.1-4.6-4.2 6.1-.6z"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6.2v13.6L9 17.6l6 2.2 6-2.2V3.8l-6 2.2-6-2.2z"/><path d="M9 4v13.6M15 6v14"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><line x1="9" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/><circle class="filled" cx="4" cy="6" r="1.3"/><circle class="filled" cx="4" cy="12" r="1.3"/><circle class="filled" cx="4" cy="18" r="1.3"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
+  <symbol id="i-arrowout" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 5.2-5.2 2.2 2.2-5.2z"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M11.5 19.5h9"/><path d="M16 3.5a2.1 2.1 0 0 1 3 3L7.5 18 3.5 19l1-4z"/></symbol>
+</svg>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="logo"><svg class="icon"><use href="#i-bean"/></svg> CoffeeMe</div>
+    <span class="draft-pill"><svg class="icon"><use href="#i-pencil"/></svg>ฉบับร่าง — ร้านเป็นข้อมูลจริงเบื้องต้น พิกัด/เวลาโดยประมาณ</span>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <p class="kicker">หาร้านกาแฟ specialty ได้ง่าย ๆ</p>
+      <h1>ร้านกาแฟดี ๆ<br>ใกล้คุณ อยู่ตรงนี้</h1>
+      <p class="lede">รวมร้านคั่วเอง มือดริป และโรงคั่วเล็ก ๆ ทั่วประเทศไทย พร้อมรีวิวจากคนที่ไปมาแล้วจริง</p>
+
+      <div class="search-panel">
+        <button class="btn btn-primary" id="geoBtn" type="button">
+          <svg class="icon"><use href="#i-pin"/></svg> ใช้ตำแหน่งของฉัน
+        </button>
+        <div class="search-input-row">
+          <svg class="icon"><use href="#i-search"/></svg>
+          <input type="text" id="areaInput" placeholder="หรือพิมพ์ชื่อจังหวัด เช่น เชียงใหม่...">
+        </div>
+        <button class="icon-btn" id="areaSearchBtn" type="button" aria-label="ค้นหา">
+          <svg class="icon"><use href="#i-search"/></svg>
+        </button>
+      </div>
+      <p class="geo-status" id="geoStatus" role="status"></p>
+      <div class="radius-row" id="radiusRow" hidden>
+        <span class="radius-label">รัศมีค้นหา:</span>
+        <button class="chip chip-sm radius-chip" data-km="5" type="button">5 กม.</button>
+        <button class="chip chip-sm radius-chip" data-km="20" type="button">20 กม.</button>
+        <button class="chip chip-sm radius-chip" data-km="100" type="button">100 กม. (ระหว่างทาง)</button>
+        <button class="chip chip-sm radius-chip active" data-km="0" type="button">ไม่จำกัด</button>
+      </div>
+    </div>
+
+    <div class="mascot-wrap">
+      <svg class="mascot" viewBox="0 0 240 220" aria-hidden="true">
+        <circle class="blob" cx="120" cy="118" r="98"/>
+        <path class="leaf" d="M186 70c10-6 20-2 22 6-8 4-18 2-22-6z"/>
+        <ellipse class="saucer" cx="120" cy="182" rx="56" ry="9"/>
+        <path class="cup" d="M72 96h80l-7 60a19 19 0 0 1-19 17H98a19 19 0 0 1-19-17z"/>
+        <path class="handle" d="M150 104c15-2 25 7 25 18s-11 21-26 20"/>
+        <circle class="face" cx="100" cy="124" r="5"/>
+        <circle class="face" cx="132" cy="124" r="5"/>
+        <path class="smile" d="M100 140q14 11 28 0"/>
+        <path class="steam s1" d="M92 84c-6-9 2-16 2-16"/>
+        <path class="steam s2" d="M118 80c-6-9 2-18 2-18"/>
+        <path class="steam s3" d="M144 84c-6-9 2-16 2-16"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="filters">
+  <div class="wrap">
+    <p class="section-kicker">กรองตามสไตล์ร้าน</p>
+    <div class="chip-row" id="chipRow">
+      <button class="chip" data-tag="roast" type="button"><svg class="icon"><use href="#i-bean"/></svg>คั่วเอง</button>
+      <button class="chip" data-tag="single" type="button"><svg class="icon"><use href="#i-leaf"/></svg>Single Origin</button>
+      <button class="chip" data-tag="brew" type="button"><svg class="icon"><use href="#i-drop"/></svg>ดริปมือ</button>
+      <button class="chip" data-tag="pet" type="button"><svg class="icon"><use href="#i-paw"/></svg>สัตว์เลี้ยงเข้าได้</button>
+      <button class="chip" data-tag="wifi" type="button"><svg class="icon"><use href="#i-wifi"/></svg>Wifi ฟรี</button>
+      <button class="chip" data-tag="parking" type="button"><svg class="icon"><use href="#i-parking"/></svg>ที่จอดรถ</button>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="view-toggle-wrap">
+    <div class="view-toggle">
+      <button class="toggle-btn active" data-view="list" type="button"><svg class="icon"><use href="#i-list"/></svg>รายการ</button>
+      <button class="toggle-btn" data-view="map" type="button"><svg class="icon"><use href="#i-map"/></svg>แผนที่</button>
+    </div>
+    <p class="result-meta"><span class="num" id="resultCount">11</span> ร้านที่บันทึกไว้ · อัปเดตล่าสุด ต.ค. 2569</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <section id="listView" class="shop-grid"></section>
+
+  <section id="mapView" class="map-view" hidden>
+    <div class="map-panel">
+      <div id="mapCanvas" class="map-canvas"></div>
+      <div id="mapFallback" class="map-fallback" hidden>
+        <svg class="icon"><use href="#i-map"/></svg>
+        <strong>โหลดแผนที่ไม่สำเร็จ</strong>
+        <p>พรีวิวหน้านี้โหลดสคริปต์จากภายนอกไม่ได้ (แผนที่ใช้ได้จริงเมื่อเปิดจากไฟล์ index.html ตัวจริงหรือเว็บที่ deploy แล้ว ที่มีอินเทอร์เน็ตเข้าถึง)</p>
+      </div>
+    </div>
+    <p class="map-note">* แผนที่นี้ใช้ OpenStreetMap ผ่านไลบรารี Leaflet (โอเพนซอร์ส ไม่มีค่าใช้จ่าย ไม่ต้องสมัคร API key หรือผูกบัตรเครดิต)</p>
+  </section>
+</div>
+
+<footer class="site-footer">
+  <div class="logo"><svg class="icon"><use href="#i-bean"/></svg> CoffeeMe</div>
+  <p>สมุดจดร้านกาแฟ specialty ทั่วไทย</p>
+  <p>© 2569 CoffeeMe · เว็บไซต์อยู่ระหว่างพัฒนา (Mockup)</p>
+</footer>
+
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-close" id="modalClose" type="button" aria-label="ปิด"><svg class="icon"><use href="#i-close"/></svg></button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* ข้อมูลร้านจริง รวบรวมจากบทความ/เพจแนะนำร้าน specialty coffee ที่ค้นเจอ
+     พิกัดเป็นระดับย่าน/ถนน (โดยประมาณ) ยังไม่ใช่หมุดแม่นยำระดับอาคาร — ควรปักหมุดจริงผ่านเครื่องมือแอดมินภายหลัง
+     ไม่ใส่คะแนน/รีวิวปลอม — รีวิวจริงให้ลิงก์ออกไป Google Maps โดยตรงแทน (ดู modalHTML) */
+  var shops = [
+    { id:1, name:"Nana Coffee Roasters (สาขาอารีย์)", province:"กรุงเทพฯ", tags:["roast","single"], lat:13.7797, lng:100.5455,
+      blurb:"โรงคั่วกาแฟที่มีเมล็ด Single Origin ให้เลือกกว่า 30 ชนิดจากทั่วโลก คั่วเองทุกล็อต",
+      address:"ซอยอารีย์ 4 เขตพญาไท กรุงเทพฯ", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:2, name:"Atlas Specialty Coffee", province:"กรุงเทพฯ", tags:["single"], lat:13.7050, lng:100.6015,
+      blurb:"คัดเมล็ดคุณภาพจากแหล่งปลูกทั่วโลก ทั้งกัวเตมาลา บราซิล เคนยา เอธิโอเปีย ไปจนถึงเมล็ดไทยจากน่าน",
+      address:"ย่านอ่อนนุช เขตประเวศ กรุงเทพฯ", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:3, name:"Santipanich Bangkok", province:"กรุงเทพฯ", tags:["roast"], lat:13.8154, lng:100.5989,
+      blurb:"มีโรงคั่วเป็นของตัวเอง ขึ้นชื่อเรื่องโคลด์บรูว์สูตรเฉพาะของร้าน",
+      address:"ซ.สุคนธสวัสดิ์ 8 เขตลาดพร้าว กรุงเทพฯ", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:4, name:"Chata Specialty Coffee", province:"กรุงเทพฯ", tags:[], lat:13.7402, lng:100.5088,
+      blurb:"ผสมผสานเมล็ดจากเอธิโอเปีย อินโดนีเซีย บราซิล และอินเดีย ให้รสชาติที่เป็นเอกลักษณ์",
+      address:"ย่านเยาวราช ใกล้ MRT วัดมังกร กรุงเทพฯ", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:5, name:"Ristr8to Original", province:"เชียงใหม่", tags:[], lat:18.7989, lng:98.9678,
+      blurb:"ร้านกาแฟชื่อดังระดับโลกจากฝีมือแชมป์ลาเต้อาร์ตของไทย หนึ่งในร้านที่นักดื่มกาแฟต้องมาสักครั้ง",
+      address:"ถ.นิมมานเหมินท์ ซอย 3 ต.สุเทพ อ.เมือง เชียงใหม่", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:6, name:"Akha Ama Coffee (The New Original)", province:"เชียงใหม่", tags:["single"], lat:18.7912, lng:98.9880,
+      blurb:"ชู Single Origin จากไร่ชาวเขาในภาคเหนือโดยตรง สนับสนุนเกษตรกรไทยมากว่า 15 ปี",
+      address:"ถ.มูลเมือง ซอย 9 ต.ศรีภูมิ อ.เมือง เชียงใหม่", hours:"เปิดทุกวัน 08:00–17:00 น." },
+    { id:7, name:"โรงคั่วกาแฟ น.น่าน", province:"น่าน", tags:["roast"], lat:18.5460, lng:100.7350,
+      blurb:"โรงคั่วกาแฟท้องถิ่นของน่าน คั่วเมล็ดจากไร่ในพื้นที่เอง",
+      address:"อ.เวียงสา จ.น่าน", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:8, name:"โลวแคล คาเฟ่ (Low Local Cafe)", province:"เชียงราย", tags:[], lat:19.9130, lng:99.8320,
+      blurb:"คาเฟ่กาแฟ organic specialty ย่านสนามบินเก่า บรรยากาศเรียบง่ายเป็นกันเอง",
+      address:"ถ.สนามบินเก่า อ.เมือง เชียงราย", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:9, name:"The Shelter Coffee Phuket", province:"ภูเก็ต", tags:["single","brew"], lat:7.8850, lng:98.3900,
+      blurb:"บาริสต้าแชมป์ Aeropress ระดับประเทศ ชงแบบ manual brew หลากหลาย มีเมล็ด single origin ให้เลือก",
+      address:"97 ถ.ดีบุก ต.ตลาดเหนือ อ.เมือง ภูเก็ต", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:10, name:"Campus Coffee Roaster", province:"ภูเก็ต", tags:["roast"], lat:7.8870, lng:98.3925,
+      blurb:"มีโรงคั่วในร้าน คัดเมล็ดพิถีพิถัน เด่นเรื่องเมนู Affogato และ Hot Drip",
+      address:"ต.ตลาดเหนือ อ.เมือง ภูเก็ต", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" },
+    { id:11, name:"โรงคั่วชูใจ (Chujai The Roaster)", province:"ขอนแก่น", tags:["roast"], lat:16.4419, lng:102.8360,
+      blurb:"แหล่งเมล็ดกาแฟคั่วสดของขอนแก่น บริการครบวงจรตั้งแต่เมล็ดดิบถึงคั่วเสร็จ",
+      address:"อ.เมือง ขอนแก่น", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" }
+  ];
+
+  var tagMeta = {
+    roast:{label:"คั่วเอง", icon:"i-bean"},
+    single:{label:"Single Origin", icon:"i-leaf"},
+    brew:{label:"ดริปมือ", icon:"i-drop"},
+    pet:{label:"สัตว์เลี้ยงเข้าได้", icon:"i-paw"},
+    wifi:{label:"Wifi ฟรี", icon:"i-wifi"},
+    parking:{label:"ที่จอดรถ", icon:"i-parking"}
+  };
+
+  var activeTags = new Set();
+  var geoMode = false;
+  var userLocation = null;
+  var radiusKm = 0; // 0 = ไม่จำกัด
+  var areaQuery = ''; // ข้อความค้นหาจังหวัด/พื้นที่
+
+  var listView = document.getElementById('listView');
+  var resultCount = document.getElementById('resultCount');
+
+  function tagPill(key){
+    var t = tagMeta[key];
+    return '<span class="tag"><svg class="icon"><use href="#'+t.icon+'"/></svg>'+t.label+'</span>';
+  }
+
+  function haversineKm(lat1, lng1, lat2, lng2){
+    var R = 6371;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLng = (lng2 - lng1) * Math.PI / 180;
+    var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function cardHTML(shop){
+    var metaBadge = geoMode
+      ? '<span class="province-badge">'+shop.distance.toFixed(1)+' กม.</span>'
+      : '<span class="province-badge">'+shop.province+'</span>';
+    return (
+      '<button class="shop-card" data-id="'+shop.id+'" type="button">' +
+        '<div class="thumb"><svg class="icon"><use href="#i-bean"/></svg></div>' +
+        '<div class="card-top"><span class="shop-name">'+shop.name+'</span>'+metaBadge+'</div>' +
+        '<p class="blurb">'+shop.blurb+'</p>' +
+        '<div class="tag-row">'+shop.tags.map(tagPill).join('')+'</div>' +
+        '<span class="card-cta">เปิดดูหน้านี้ <svg class="icon"><use href="#i-arrowout"/></svg></span>' +
+      '</button>'
+    );
+  }
+
+  function renderList(){
+    var filtered = shops.filter(function(s){
+      if(activeTags.size===0) return true;
+      var ok = true;
+      activeTags.forEach(function(t){ if(s.tags.indexOf(t)===-1) ok = false; });
+      return ok;
+    });
+    if(areaQuery){
+      var q = areaQuery.toLowerCase();
+      filtered = filtered.filter(function(s){
+        return s.province.toLowerCase().indexOf(q) !== -1 || s.address.toLowerCase().indexOf(q) !== -1;
+      });
+    }
+    if(geoMode){
+      filtered = filtered.slice().sort(function(a,b){ return a.distance - b.distance; });
+      if(radiusKm){ filtered = filtered.filter(function(s){ return s.distance <= radiusKm; }); }
+    }
+    resultCount.textContent = filtered.length;
+    var emptyMsg = (geoMode && radiusKm)
+      ? 'ไม่มีร้านในรัศมี '+radiusKm+' กม. นี้ ลองขยายรัศมีค้นหาดูนะ'
+      : areaQuery
+        ? 'ไม่พบร้านแถว "'+areaQuery+'" ลองพิมพ์ชื่อจังหวัดอื่นดูนะ'
+        : 'ยังไม่มีร้านที่ตรงกับตัวกรองนี้ในสมุด ลองลบตัวกรองบางอันดูนะ';
+    listView.innerHTML = filtered.length
+      ? filtered.map(cardHTML).join('')
+      : '<p style="color:var(--ink-soft);padding:20px 0;">'+emptyMsg+'</p>';
+    Array.prototype.forEach.call(listView.querySelectorAll('.shop-card'), function(btn){
+      btn.addEventListener('click', function(){ openModal(Number(btn.getAttribute('data-id'))); });
+    });
+  }
+
+  document.getElementById('chipRow').addEventListener('click', function(e){
+    var chip = e.target.closest('.chip');
+    if(!chip) return;
+    var tag = chip.getAttribute('data-tag');
+    if(activeTags.has(tag)){ activeTags.delete(tag); chip.classList.remove('active'); }
+    else { activeTags.add(tag); chip.classList.add('active'); }
+    renderList();
+  });
+
+  var radiusRow = document.getElementById('radiusRow');
+  radiusRow.addEventListener('click', function(e){
+    var chip = e.target.closest('.radius-chip');
+    if(!chip) return;
+    Array.prototype.forEach.call(radiusRow.querySelectorAll('.radius-chip'), function(c){ c.classList.remove('active'); });
+    chip.classList.add('active');
+    radiusKm = Number(chip.getAttribute('data-km'));
+    renderList();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.toggle-btn'), function(btn){
+    btn.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('.toggle-btn'), function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var view = btn.getAttribute('data-view');
+      document.getElementById('listView').hidden = view !== 'list';
+      document.getElementById('mapView').hidden = view !== 'map';
+      if(view === 'map'){
+        initLeafletMap();
+        if(mapInstance){
+          setTimeout(function(){ mapInstance.invalidateSize(); }, 0);
+          mapInstance.setView(userLocation ? [userLocation.lat, userLocation.lng] : [13.9, 100.9], userLocation ? 11 : 6);
+        }
+      }
+    });
+  });
+
+  var geoStatus = document.getElementById('geoStatus');
+  document.getElementById('geoBtn').addEventListener('click', function(){
+    if(!('geolocation' in navigator)){
+      geoStatus.textContent = 'เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง ลองพิมพ์ชื่อจังหวัดแทนนะ';
+      return;
+    }
+    geoStatus.textContent = 'กำลังขอตำแหน่งของคุณ...';
+    navigator.geolocation.getCurrentPosition(function(pos){
+      userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      shops.forEach(function(s){ s.distance = haversineKm(userLocation.lat, userLocation.lng, s.lat, s.lng); });
+      geoMode = true;
+      areaQuery = '';
+      document.getElementById('areaInput').value = '';
+      radiusRow.hidden = false;
+      geoStatus.textContent = 'พบตำแหน่งของคุณแล้ว — เรียงร้านจากใกล้ไปไกล';
+      renderList();
+      placeUserMarker();
+    }, function(err){
+      var msg = 'ไม่สามารถระบุตำแหน่งได้ ลองพิมพ์ชื่อจังหวัดแทนนะ';
+      if(err && err.code === err.PERMISSION_DENIED) msg = 'คุณไม่ได้อนุญาตให้เข้าถึงตำแหน่ง ลองพิมพ์ชื่อจังหวัดแทนนะ';
+      geoStatus.textContent = msg;
+    }, { enableHighAccuracy:true, timeout:10000, maximumAge:60000 });
+  });
+
+  var areaInput = document.getElementById('areaInput');
+  function runAreaSearch(){
+    var v = areaInput.value.trim();
+    areaQuery = v;
+    if(v){
+      geoMode = false;
+      radiusRow.hidden = true;
+      geoStatus.textContent = 'ค้นหาร้านแถว "'+v+'" — พบ ' + shops.filter(function(s){
+        var q = v.toLowerCase();
+        return s.province.toLowerCase().indexOf(q) !== -1 || s.address.toLowerCase().indexOf(q) !== -1;
+      }).length + ' ร้าน';
+    } else {
+      geoStatus.textContent = 'พิมพ์ชื่อจังหวัดหรือพื้นที่ก่อนนะ';
+    }
+    renderList();
+  }
+  document.getElementById('areaSearchBtn').addEventListener('click', runAreaSearch);
+  areaInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') runAreaSearch(); });
+
+  function modalHTML(shop){
+    var mapsSearchUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(shop.name + ' ' + shop.address);
+    var directionsUrl = (shop.lat != null && shop.lng != null)
+      ? 'https://www.google.com/maps/dir/?api=1&destination=' + shop.lat + ',' + shop.lng
+      : mapsSearchUrl;
+    return (
+      '<div class="modal-thumb"><svg class="icon"><use href="#i-bean"/></svg></div>' +
+      '<h2 id="modalTitle">'+shop.name+'</h2>' +
+      '<div class="modal-meta-line"><svg class="icon"><use href="#i-pin"/></svg>'+shop.address+'</div>' +
+      '<div class="modal-meta-line"><svg class="icon"><use href="#i-compass"/></svg>'+shop.hours+'</div>' +
+      '<div class="tag-row" style="margin-top:12px;">'+(shop.tags.length ? shop.tags.map(tagPill).join('') : '')+'</div>' +
+      '<p class="blurb" style="margin-top:14px;">'+shop.blurb+'</p>' +
+      '<div class="modal-actions">' +
+        '<a class="btn btn-primary" href="'+mapsSearchUrl+'" target="_blank" rel="noopener"><svg class="icon"><use href="#i-arrowout"/></svg>ดูรีวิวจริงบน Google Maps</a>' +
+        '<a class="btn btn-outline" href="'+directionsUrl+'" target="_blank" rel="noopener"><svg class="icon"><use href="#i-compass"/></svg>นำทาง</a>' +
+      '</div>' +
+      '<p class="section-kicker" style="margin-top:6px;">ข้อมูลร้านนี้รวบรวมจากแหล่งข้อมูลสาธารณะ คะแนน/รีวิวฉบับเต็มดูได้ที่ Google Maps โดยตรง</p>'
+    );
+  }
+
+  var backdrop = document.getElementById('modalBackdrop');
+  var modalContent = document.getElementById('modalContent');
+  function openModal(id){
+    var shop = shops.find(function(s){ return s.id === id; });
+    if(!shop) return;
+    modalContent.innerHTML = modalHTML(shop);
+    backdrop.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){ backdrop.hidden = true; document.body.style.overflow = ''; }
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  backdrop.addEventListener('click', function(e){ if(e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !backdrop.hidden) closeModal(); });
+
+  /* ---------- Main map (free, no API key, no billing) ----------
+     Leaflet + OpenStreetMap tiles — both free and open-source. The Leaflet library
+     is loaded via <script>/<link> tags in <head>; OSM tiles are fetched straight
+     from tile.openstreetmap.org, no account or key needed. Fair-use guidance:
+     https://operations.osmfoundation.org/policies/tiles/ — fine for a small site
+     like this; a high-traffic deploy should eventually move to a paid tile host. */
+  var mapInstance = null;
+  var shopMarkers = [];
+
+  function pinIcon(){
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24">' +
+      '<path fill="#B07355" stroke="#FFFFFF" stroke-width="1.3" d="M12 1s7 7.58 7 12A7 7 0 0 1 5 13c0-4.42 7-12 7-12z"/>' +
+      '<circle cx="12" cy="10.3" r="2.4" fill="#FFFFFF"/></svg>';
+    return L.divIcon({ html: svg, className: '', iconSize: [30,30], iconAnchor: [15,28] });
+  }
+
+  function initLeafletMap(){
+    if(mapInstance) return; // already set up
+    var canvas = document.getElementById('mapCanvas');
+    var fallback = document.getElementById('mapFallback');
+    if(!canvas) return;
+    if(typeof L === 'undefined'){
+      if(fallback) fallback.hidden = false; // Leaflet script didn't load (blocked here, or offline)
+      return;
+    }
+    mapInstance = L.map(canvas, { scrollWheelZoom:true }).setView([13.9, 100.9], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+    }).addTo(mapInstance);
+
+    var icon = pinIcon();
+    shops.forEach(function(shop){
+      if(shop.lat == null || shop.lng == null) return;
+      var marker = L.marker([shop.lat, shop.lng], { icon: icon, title: shop.name }).addTo(mapInstance);
+      marker.on('click', function(){ openModal(shop.id); });
+      shopMarkers.push(marker);
+    });
+
+    if(fallback) fallback.hidden = true;
+    if(userLocation) placeUserMarker();
+  }
+
+  var userMarker = null;
+  function placeUserMarker(){
+    if(!mapInstance || !userLocation) return;
+    if(userMarker) mapInstance.removeLayer(userMarker);
+    userMarker = L.circleMarker([userLocation.lat, userLocation.lng], {
+      radius: 8, color: '#FFFFFF', weight: 2, fillColor: '#6E7B63', fillOpacity: 1
+    }).addTo(mapInstance);
+    userMarker.bindTooltip('ตำแหน่งของคุณ');
+    mapInstance.setView([userLocation.lat, userLocation.lng], 11);
+  }
+
+  renderList();
+})();
+</script>
+</body>
+</html>
