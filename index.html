@@ -1061,6 +1061,65 @@
       address:"อ.เมือง ขอนแก่น", hours:"ดูเวลาเปิด-ปิดล่าสุดบน Google Maps" }
   ];
 
+  /* พิกัดศูนย์กลาง 77 จังหวัดของไทย (ค่าคงที่ ไม่ต้องยิง network) — ใช้ลองจับคู่ชื่อจังหวัด
+     ก่อนพึ่ง Nominatim (ซึ่งเป็นบริการสาธารณะฟรีที่บางครั้งบล็อก/จำกัดการเรียกจากเบราว์เซอร์)
+     ที่มา: ข้อมูลพิกัดจังหวัดสาธารณะ (dataengineercafe/thailand-province-latitude-longitude) */
+  var thaiProvinceCoords = {
+    "กรุงเทพมหานคร":[13.72790,100.52412], "กระบี่":[8.08630,98.90628], "กาญจนบุรี":[14.02278,99.53281],
+    "กาฬสินธุ์":[16.43141,103.50588], "กำแพงเพชร":[16.48278,99.52266], "ขอนแก่น":[16.44194,102.83599],
+    "จันทบุรี":[12.61134,102.10385], "ฉะเชิงเทรา":[13.69042,101.07796], "ชลบุรี":[13.36114,100.98467],
+    "ชัยนาท":[15.18520,100.12513], "ชัยภูมิ":[15.80682,102.03150], "ชุมพร":[10.49305,99.18002],
+    "เชียงราย":[19.90717,99.83096], "เชียงใหม่":[18.78775,98.99313], "ตรัง":[7.55939,99.61101],
+    "ตราด":[12.24276,102.51747], "ตาก":[16.88399,99.12585], "นครนายก":[14.20695,101.21305],
+    "นครปฐม":[13.81992,100.06217], "นครพนม":[17.39204,104.76955], "นครราชสีมา":[14.97990,102.09777],
+    "นครศรีธรรมราช":[8.43040,99.96312], "นครสวรรค์":[15.69301,100.12256], "นนทบุรี":[13.86211,100.51435],
+    "นราธิวาส":[6.42546,101.82531], "น่าน":[18.77563,100.77304], "บุรีรัมย์":[14.99300,103.10292],
+    "ปทุมธานี":[14.02084,100.52503], "ประจวบคีรีขันธ์":[11.81237,99.79733], "ปราจีนบุรี":[14.05097,101.37274],
+    "ปัตตานี":[6.86948,101.25048], "พระนครศรีอยุธยา":[14.35321,100.56896], "พะเยา":[19.16648,99.90194],
+    "พังงา":[8.44075,98.51930], "พัทลุง":[7.61668,100.07402], "พิจิตร":[16.44295,100.34823],
+    "พิษณุโลก":[16.82980,100.26149], "เพชรบุรี":[13.11116,99.93913], "เพชรบูรณ์":[16.41898,101.15509],
+    "แพร่":[18.14458,100.14028], "ภูเก็ต":[7.98105,98.36388], "มหาสารคาม":[16.18509,103.30265],
+    "มุกดาหาร":[16.54244,104.72092], "แม่ฮ่องสอน":[19.29906,97.96562], "ยโสธร":[15.79264,104.14528],
+    "ยะลา":[6.54115,101.28039], "ร้อยเอ็ด":[16.05382,103.65200], "ระนอง":[9.95287,98.60846],
+    "ระยอง":[12.68331,101.23743], "ราชบุรี":[13.52829,99.81342], "ลพบุรี":[14.79951,100.65337],
+    "ลำปาง":[18.28884,99.49087], "ลำพูน":[18.57446,99.00872], "เลย":[17.48602,101.72230],
+    "ศรีสะเกษ":[15.11860,104.32201], "สกลนคร":[17.15460,104.13484], "สงขลา":[7.17560,100.61435],
+    "สตูล":[6.62382,100.06737], "สมุทรปราการ":[13.59910,100.59983], "สมุทรสงคราม":[13.40982,100.00226],
+    "สมุทรสาคร":[13.54752,100.27440], "สระแก้ว":[13.82404,102.06458], "สระบุรี":[14.52892,100.91014],
+    "สิงห์บุรี":[14.89363,100.39673], "สุโขทัย":[17.00556,99.82637], "สุพรรณบุรี":[14.47449,100.11771],
+    "สุราษฎร์ธานี":[9.13824,99.32175], "สุรินทร์":[14.88291,103.49371], "หนองคาย":[17.87828,102.74126],
+    "หนองบัวลำภู":[17.22182,102.42604], "อ่างทอง":[14.58961,100.45505], "อำนาจเจริญ":[15.86568,104.62578],
+    "อุดรธานี":[17.41384,102.78723], "อุตรดิตถ์":[17.62009,100.09929], "อุทัยธานี":[15.38350,100.02455],
+    "อุบลราชธานี":[15.22869,104.85642], "บึงกาฬ":[18.36091,103.64645]
+  };
+  thaiProvinceCoords["กรุงเทพฯ"] = thaiProvinceCoords["กรุงเทพมหานคร"];
+  thaiProvinceCoords["กรุงเทพ"] = thaiProvinceCoords["กรุงเทพมหานคร"];
+  var thaiProvinceNames = Object.keys(thaiProvinceCoords);
+
+  function matchProvinceCoords(query){
+    var q = query.trim();
+    if(!q) return null;
+    if(thaiProvinceCoords[q]) return thaiProvinceCoords[q];
+    /* เทียบทีละ "คำ" ก่อน (ตัดคำนำหน้า จังหวัด/จ./อำเภอ/อ./ตำบล/ต. ออก) เพื่อให้ตรงเป๊ะ
+       เช่น "อำเภอสอง จังหวัดแพร่" -> token "จังหวัดแพร่" -> ตัดคำนำหน้าเหลือ "แพร่" ตรงเป๊ะ
+       วิธีนี้แม่นยำกว่าการเทียบ substring ดิบ ๆ ซึ่งอาจจับคู่ผิด (เช่น "นคร" ไปจับ "กรุงเทพมหานคร"
+       เพราะมันบังเอิญเป็น substring ที่เจอก่อนในตาราง ทั้งที่ไม่เกี่ยวกัน) */
+    var prefixRe = /^(จังหวัด|จ\.|อำเภอ|อ\.|ตำบล|ต\.)/;
+    var tokens = q.split(/\s+/);
+    for(var i=0;i<tokens.length;i++){
+      var t = tokens[i].replace(prefixRe, '');
+      if(thaiProvinceCoords[t]) return thaiProvinceCoords[t];
+    }
+    /* ทางเลือกสุดท้าย: หา substring ที่ตรงกัน "ยาวที่สุด" (ไม่ใช่ตัวแรกที่เจอ) ลดโอกาสจับคู่ผิด
+       จากชื่อจังหวัดสั้น ๆ ที่บังเอิญเป็นส่วนหนึ่งของชื่อจังหวัดอื่น */
+    var best = null, bestLen = 0;
+    for(var j=0;j<thaiProvinceNames.length;j++){
+      var name = thaiProvinceNames[j];
+      if(q.indexOf(name) !== -1 && name.length > bestLen){ best = thaiProvinceCoords[name]; bestLen = name.length; }
+    }
+    return best;
+  }
+
   var tagMeta = {
     roast:{label:"คั่วเอง", icon:"i-bean"},
     single:{label:"Single Origin", icon:"i-leaf"},
@@ -1102,6 +1161,15 @@
       Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
       Math.sin(dLng/2) * Math.sin(dLng/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  /* ร้านจาก OpenStreetMap เป็นข้อมูลที่ใครก็แก้ไขได้ (crowd-sourced) ไม่ใช่ข้อมูลที่เราพิมพ์เอง
+     ต้อง escape ก่อนแทรกผ่าน innerHTML เสมอ ไม่งั้นถ้ามีคนแก้ชื่อร้านใน OSM ให้เป็นโค้ด HTML/JS
+     (เช่น <img onerror=...>) โค้ดนั้นจะถูกรันจริงในเบราว์เซอร์ของคนที่เข้าเว็บเรา (XSS) */
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(ch){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch];
+    });
   }
 
   function cardHTML(shop){
@@ -1157,8 +1225,8 @@
     return (
       '<div class="shop-card osm-card">' +
         '<div class="thumb"><svg class="icon"><use href="#i-bean"/></svg></div>' +
-        '<div class="card-top"><span class="shop-name">'+c.name+'</span><span class="province-badge">'+c.distance.toFixed(1)+' กม.</span></div>' +
-        '<p class="blurb">'+(c.address || 'ไม่มีรายละเอียดที่อยู่ใน OpenStreetMap')+'</p>' +
+        '<div class="card-top"><span class="shop-name">'+escapeHtml(c.name)+'</span><span class="province-badge">'+c.distance.toFixed(1)+' กม.</span></div>' +
+        '<p class="blurb">'+escapeHtml(c.address || 'ไม่มีรายละเอียดที่อยู่ใน OpenStreetMap')+'</p>' +
         '<span class="osm-badge">ข้อมูลจาก OpenStreetMap</span>' +
         '<div class="card-actions">' +
           '<a class="btn btn-outline" href="'+mapsSearchUrl+'" target="_blank" rel="noopener"><svg class="icon"><use href="#i-arrowout"/></svg>ดูใน Google Maps</a>' +
@@ -1180,9 +1248,17 @@
       : '<p style="color:var(--ink-soft);padding:6px 0;">ไม่พบร้านกาแฟเพิ่มเติมจาก OpenStreetMap ในพื้นที่นี้</p>';
   }
 
+  function fetchWithTimeout(url, opts, ms){
+    var controller = ('AbortController' in window) ? new AbortController() : null;
+    var timer = controller ? setTimeout(function(){ controller.abort(); }, ms) : null;
+    var finalOpts = opts || {};
+    if(controller) finalOpts.signal = controller.signal;
+    return fetch(url, finalOpts).finally(function(){ if(timer) clearTimeout(timer); });
+  }
+
   function geocodePlace(query){
     var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=th&q=' + encodeURIComponent(query);
-    return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function(r){
+    return fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 12000).then(function(r){
       if(!r.ok) throw new Error('nominatim_http_'+r.status);
       return r.json();
     }).then(function(data){
@@ -1193,11 +1269,11 @@
 
   function fetchNearbyCafesOSM(lat, lng, radiusM){
     var ql = '[out:json][timeout:20];(node["amenity"="cafe"](around:'+radiusM+','+lat+','+lng+');way["amenity"="cafe"](around:'+radiusM+','+lat+','+lng+'));out center 30;';
-    return fetch('https://overpass-api.de/api/interpreter', {
+    return fetchWithTimeout('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'data=' + encodeURIComponent(ql)
-    }).then(function(r){
+    }, 20000).then(function(r){
       if(!r.ok) throw new Error('overpass_http_'+r.status);
       return r.json();
     }).then(function(data){
@@ -1221,18 +1297,19 @@
     });
   }
 
-  function runOsmNearbySearch(lat, lng){
+  function runOsmNearbySearch(lat, lng, approxNote){
     osmHasRun = true;
     updateOsmSectionVisibility();
-    osmStatus.textContent = 'กำลังค้นหาร้านกาแฟใกล้เคียงจาก OpenStreetMap...';
+    var prefix = approxNote ? approxNote + ' ' : '';
+    osmStatus.textContent = prefix + 'กำลังค้นหาร้านกาแฟใกล้เคียงจาก OpenStreetMap...';
     renderOsmResults([]);
     fetchNearbyCafesOSM(lat, lng, 3000).then(function(list){
-      osmStatus.textContent = list.length
+      osmStatus.textContent = prefix + (list.length
         ? 'พบร้านกาแฟเพิ่มเติม ' + list.length + ' ร้านจาก OpenStreetMap (รัศมี 3 กม. — ข้อมูลจากชุมชน ยังไม่ผ่านการคัดสรร)'
-        : 'ไม่พบร้านกาแฟเพิ่มเติมจาก OpenStreetMap ในรัศมี 3 กม.';
+        : 'ไม่พบร้านกาแฟเพิ่มเติมจาก OpenStreetMap ในรัศมี 3 กม.');
       renderOsmResults(list);
     }).catch(function(){
-      osmStatus.textContent = 'ค้นหาจาก OpenStreetMap ไม่สำเร็จตอนนี้ (เซิร์ฟเวอร์ฟรีอาจช้าหรือไม่ว่างชั่วคราว) ลองใหม่อีกครั้งในอีกสักพัก';
+      osmStatus.textContent = prefix + 'ค้นหาจาก OpenStreetMap ไม่สำเร็จตอนนี้ (เซิร์ฟเวอร์ฟรีอาจช้าหรือไม่ว่างชั่วคราว) ลองใหม่อีกครั้งในอีกสักพัก';
       renderOsmResults([]);
     });
   }
@@ -1315,21 +1392,44 @@
       return s.province.toLowerCase().indexOf(q) !== -1 || s.address.toLowerCase().indexOf(q) !== -1;
     }).length;
     var baseMsg = 'ค้นหาร้านแถว "'+v+'" — พบ ' + curatedCount + ' ร้านในสมุดที่คัดสรรไว้';
-    geoStatus.textContent = baseMsg + ' · กำลังค้นหาร้านอื่นเพิ่มเติมจาก OpenStreetMap...';
     renderList();
 
+    /* ถ้าพิมพ์ "ชื่อจังหวัดเปล่า ๆ" ตรง ๆ (เช่น "แพร่") ใช้ตารางพิกัดจังหวัดคงที่ได้เลย
+       เร็ว ไม่พึ่ง network ไม่มีโอกาสถูกบล็อก — แม่นยำพอสำหรับระดับจังหวัด
+       แต่ถ้าพิมพ์ละเอียดกว่านั้น (เช่น "อำเภอสอง จังหวัดแพร่") ลองหาพิกัดที่แม่นยำกว่าผ่าน
+       Nominatim ก่อน เพื่อให้ได้ตำแหน่งอำเภอ/ตำบลจริง ๆ ไม่ใช่แค่จุดกึ่งกลางจังหวัด
+       — ถ้า Nominatim หาไม่เจอหรือเชื่อมต่อไม่ได้ ค่อย fallback มาที่จังหวัดเดิม พร้อมบอกผู้ใช้ชัด ๆ
+       ว่าเป็นผลลัพธ์โดยประมาณ ไม่ปล่อยให้ค้นหาแล้ว "เงียบ" โดยไม่มีคำตอบ */
+    var bareProvinceMatch = thaiProvinceCoords[v];
+    if(bareProvinceMatch){
+      geoStatus.textContent = baseMsg;
+      runOsmNearbySearch(bareProvinceMatch[0], bareProvinceMatch[1]);
+      return;
+    }
+
+    geoStatus.textContent = baseMsg + ' · กำลังหาตำแหน่งที่แม่นยำขึ้น...';
     geocodePlace(v + ', ประเทศไทย').then(function(loc){
       geoStatus.textContent = baseMsg;
-      if(!loc){
-        osmHasRun = true;
-        updateOsmSectionVisibility();
-        osmStatus.textContent = 'หาพื้นที่ "'+v+'" ไม่เจอบน OpenStreetMap ลองพิมพ์ชื่อให้ชัดเจนขึ้น เช่น ชื่อย่าน/อำเภอ/จังหวัด';
-        renderOsmResults([]);
+      if(loc){
+        runOsmNearbySearch(loc.lat, loc.lng);
         return;
       }
-      runOsmNearbySearch(loc.lat, loc.lng);
+      var fallback = matchProvinceCoords(v);
+      if(fallback){
+        runOsmNearbySearch(fallback[0], fallback[1], 'หาตำแหน่งที่แม่นยำของ "'+v+'" ไม่เจอ แสดงร้านรอบจังหวัดที่ใกล้เคียงที่สุดแทน (อาจไม่ตรงพื้นที่เป๊ะ) —');
+        return;
+      }
+      osmHasRun = true;
+      updateOsmSectionVisibility();
+      osmStatus.textContent = 'หาพื้นที่ "'+v+'" ไม่เจอ ลองพิมพ์ชื่อให้ชัดเจนขึ้น เช่น ชื่อย่าน/อำเภอ/จังหวัด';
+      renderOsmResults([]);
     }).catch(function(){
       geoStatus.textContent = baseMsg;
+      var fallback = matchProvinceCoords(v);
+      if(fallback){
+        runOsmNearbySearch(fallback[0], fallback[1], 'เชื่อมต่อหาตำแหน่งที่แม่นยำไม่สำเร็จ แสดงร้านรอบจังหวัดที่ใกล้เคียงที่สุดแทน —');
+        return;
+      }
       osmHasRun = true;
       updateOsmSectionVisibility();
       osmStatus.textContent = 'เชื่อมต่อ OpenStreetMap ไม่สำเร็จตอนนี้ ลองใหม่อีกครั้งในอีกสักพัก';
