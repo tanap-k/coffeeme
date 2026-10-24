@@ -1147,9 +1147,8 @@
 
   /* ---------- live nearby-search ผ่าน OpenStreetMap (ฟรี ไม่มี API key) ----------
      Nominatim = แปลงชื่อพื้นที่ที่พิมพ์ -> พิกัด (geocoding)
-     Overpass API = ค้นหาร้านกาแฟจริงรอบพิกัดนั้นจากข้อมูลของ OpenStreetMap
-     ทั้งสองเป็นบริการสาธารณะฟรี ไม่ต้องสมัคร/ผูกบัตร แต่เป็นเซิร์ฟเวอร์ชุมชน
-     อาจช้าหรือไม่ว่างเป็นบางครั้ง (ไม่มี SLA เหมือนบริการเสียเงิน) */
+     cafes-th.json = รายชื่อร้านกาแฟทั้งประเทศจาก OpenStreetMap (โฮสต์เองใน repo อัปเดตเดือนละครั้ง)
+     Nominatim เป็นบริการสาธารณะฟรี ไม่ต้องสมัคร/ผูกบัตร อาจช้าเป็นบางครั้ง — ถ้าล่มจะ fallback เป็นพิกัดจังหวัด */
   var osmHasRun = false;
   var osmSection = document.getElementById('osmSection');
   var osmStatus = document.getElementById('osmStatus');
@@ -1305,31 +1304,31 @@
     });
   }
 
-  /* เซิร์ฟเวอร์ Overpass สาธารณะ (ฟรี) — ถ้าตัวหลักล่ม/ไม่ว่าง ลองตัวสำรองต่อทันที */
-  var OVERPASS_ENDPOINTS = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.private.coffee/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter'
-  ];
+  /* ---------- ข้อมูลร้านกาแฟทั้งประเทศ (โฮสต์เองใน repo) ----------
+     ตั้งแต่ เม.ย. 2026 เซิร์ฟเวอร์ Overpass สาธารณะบล็อกคำขอที่ส่งตรงจากเบราว์เซอร์
+     จึงเปลี่ยนมาใช้ไฟล์ cafes-th.json ที่ GitHub Actions สร้างจากข้อมูล OpenStreetMap
+     (ผ่าน Geofabrik) เดือนละครั้ง แล้ววางไว้โดเมนเดียวกับเว็บ — ไม่โดนบล็อก ไม่ติด rate limit
+     แถว: [lat, lng, name, address, brandText] — ดู scripts/build_cafes.py
+     Data © OpenStreetMap contributors (ODbL) */
+  var CAFE_DATA_URL = 'cafes-th.json';
+  var cafeDataPromise = null;
+  var cafeDataDate = '';
 
-  function overpassRequest(ql){
-    var i = 0;
-    function attempt(){
-      var url = OVERPASS_ENDPOINTS[i];
-      return fetchWithTimeout(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'data=' + encodeURIComponent(ql)
-      }, 20000).then(function(r){
-        if(!r.ok) throw new Error('overpass_http_'+r.status);
+  function loadCafeData(){
+    if(!cafeDataPromise){
+      cafeDataPromise = fetchWithTimeout(CAFE_DATA_URL, {}, 20000).then(function(r){
+        if(r.status === 404) throw new Error('cafe_data_missing');
+        if(!r.ok) throw new Error('cafe_data_http_' + r.status);
         return r.json();
+      }).then(function(data){
+        cafeDataDate = data.generated || '';
+        return data.cafes || [];
       }).catch(function(err){
-        i++;
-        if(i < OVERPASS_ENDPOINTS.length) return attempt();
+        cafeDataPromise = null; // ให้ลองโหลดใหม่ได้ในการค้นหาครั้งถัดไป
         throw err;
       });
     }
-    return attempt();
+    return cafeDataPromise;
   }
 
   /* กรองร้านเชนใหญ่ออก เพื่อให้ผลลัพธ์ใกล้เคียงร้าน specialty มากขึ้น
@@ -1350,42 +1349,36 @@
     /* ไม่ใส่ "ดอยช้าง" หรือ "ชาวดอย" เพราะร้านอิสระ/ร้านของไร่กาแฟหลายร้านใช้คำนี้ในชื่อ
        ถ้าใส่จะกรองร้านดี ๆ ทิ้งผิด ๆ */
   ];
-  function isChainCafe(tags){
-    var hay = [tags.brand, tags['brand:en'], tags['brand:th'], tags.name, tags['name:en'], tags['name:th'], tags.operator]
-      .filter(Boolean).join(' | ').toLowerCase();
-    if(!hay) return false;
+  function isChainCafe(name, brandText){
+    var hay = ((name || '') + ' | ' + (brandText || '')).toLowerCase();
     for(var i=0;i<CHAIN_KEYWORDS.length;i++){
       if(hay.indexOf(CHAIN_KEYWORDS[i]) !== -1) return true;
     }
     return false;
   }
 
+  /* คืนร้านทั้งหมดในรัศมี เรียงจากใกล้ไปไกล (คำนวณในเบราว์เซอร์ ไม่ต้องยิงเซิร์ฟเวอร์ซ้ำ) */
   function fetchNearbyCafesOSM(lat, lng, radiusM){
-    var a = '(around:'+radiusM+','+lat+','+lng+')';
-    /* ร้านกาแฟใน OSM ติดแท็กได้หลายแบบ: amenity=cafe (ส่วนใหญ่) และ shop=coffee (ร้านขาย/คั่วกาแฟ) */
-    var ql = '[out:json][timeout:25];(' +
-      'node["amenity"="cafe"]'+a+';way["amenity"="cafe"]'+a+';' +
-      'node["shop"="coffee"]'+a+';way["shop"="coffee"]'+a+';' +
-      ');out center;'; // ไม่จำกัดจำนวน — รับร้านทั้งหมดในรัศมี แล้วมาเรียงระยะทางเองด้านล่าง
-    return overpassRequest(ql).then(function(data){
-      return (data.elements || []).map(function(el){
-        var elLat = (el.lat != null) ? el.lat : (el.center ? el.center.lat : null);
-        var elLng = (el.lon != null) ? el.lon : (el.center ? el.center.lon : null);
-        if(elLat == null || elLng == null) return null;
-        var tags = el.tags || {};
-        var addrParts = [];
-        if(tags['addr:housenumber']) addrParts.push(tags['addr:housenumber']);
-        if(tags['addr:street']) addrParts.push(tags['addr:street']);
-        if(tags['addr:subdistrict']) addrParts.push(tags['addr:subdistrict']);
-        if(tags['addr:city']) addrParts.push(tags['addr:city']);
-        return {
-          name: tags.name || 'ร้านกาแฟ (ไม่ระบุชื่อใน OpenStreetMap)',
-          lat: elLat, lng: elLng,
-          address: addrParts.join(' '),
-          distance: haversineKm(lat, lng, elLat, elLng),
-          isChain: isChainCafe(tags)
-        };
-      }).filter(Boolean).sort(function(a,b){ return a.distance - b.distance; });
+    var radiusKm = radiusM / 1000;
+    return loadCafeData().then(function(rows){
+      var out = [];
+      // กรองหยาบด้วยกรอบสี่เหลี่ยมก่อน แล้วค่อยคำนวณระยะจริง — เร็วแม้มีหลายหมื่นร้าน
+      var dLat = radiusKm / 111, dLng = radiusKm / (111 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+      for(var i=0;i<rows.length;i++){
+        var r = rows[i];
+        if(!r[2]) continue; // ไม่มีชื่อใน OSM — ค้นต่อใน Google Maps ไม่ได้ ข้ามไป
+        if(Math.abs(r[0] - lat) > dLat || Math.abs(r[1] - lng) > dLng) continue;
+        var d = haversineKm(lat, lng, r[0], r[1]);
+        if(d > radiusKm) continue;
+        out.push({
+          name: r[2] || 'ร้านกาแฟ (ไม่ระบุชื่อใน OpenStreetMap)',
+          lat: r[0], lng: r[1],
+          address: r[3] || '',
+          distance: d,
+          isChain: isChainCafe(r[2], r[4])
+        });
+      }
+      return out.sort(function(a,b){ return a.distance - b.distance; });
     });
   }
 
@@ -1401,6 +1394,10 @@
   var osmSearchToken = 0; // กันผลลัพธ์เก่าที่ตอบกลับช้ามาเขียนทับผลลัพธ์ใหม่
   var searchCenter = null;
   var lastOsmList = [];
+
+  function dataNote(){
+    return ' (ข้อมูลจากชุมชน OpenStreetMap' + (cafeDataDate ? ' ณ ' + cafeDataDate : '') + ' ยังไม่ผ่านการคัดสรร)';
+  }
 
   function runOsmNearbySearch(lat, lng, approxNote){
     var token = ++osmSearchToken;
@@ -1431,16 +1428,19 @@
         var km = r / 1000;
         var chainNote = chainCount ? ' · ซ่อนร้านเชนใหญ่ ' + chainCount + ' ร้าน' : '';
         setOsmStatus(prefix + (list.length
-          ? 'พบร้านกาแฟ ' + list.length + ' ร้านจาก OpenStreetMap ในรัศมี ' + km + ' กม. เรียงจากใกล้ไปไกล' + chainNote + ' (ข้อมูลจากชุมชน ยังไม่ผ่านการคัดสรร)'
-          : 'ไม่พบร้านกาแฟใน OpenStreetMap แม้ขยายรัศมีถึง ' + km + ' กม.' + chainNote + ' — พื้นที่นี้อาจยังไม่มีใครบันทึกร้านไว้ใน OSM'));
+          ? 'พบร้านกาแฟ ' + list.length + ' ร้านจาก OpenStreetMap ในรัศมี ' + km + ' กม. เรียงจากใกล้ไปไกล' + chainNote + dataNote()
+          : 'ไม่พบร้านกาแฟใน OpenStreetMap แม้ขยายรัศมีถึง ' + km + ' กม.' + chainNote + ' — พื้นที่นี้อาจยังไม่มีใครบันทึกร้านไว้ใน OSM' + dataNote()));
         lastOsmList = list;
         renderOsmResults(list);
         plotOsmMarkers(list.slice(0, osmShown));
       });
     }
-    tryRadius().catch(function(){
+    tryRadius().catch(function(err){
       if(token !== osmSearchToken) return;
-      setOsmStatus(prefix + 'ค้นหาจาก OpenStreetMap ไม่สำเร็จตอนนี้ (เซิร์ฟเวอร์ฟรีทุกตัวไม่ตอบ) ลองใหม่อีกครั้งในอีกสักพัก');
+      var why = (err && err.message === 'cafe_data_missing')
+        ? 'ยังไม่มีไฟล์ข้อมูลร้าน (cafes-th.json) บนเว็บ — ต้องรัน workflow "Update cafe data" ใน GitHub ก่อน'
+        : 'โหลดข้อมูลร้านกาแฟไม่สำเร็จ (ถ้าเปิดไฟล์ index.html จากเครื่องตรง ๆ จะโหลดไม่ได้ ต้องเปิดผ่านเว็บที่ deploy แล้ว)';
+      setOsmStatus(prefix + why);
       renderOsmResults([]);
     });
   }
